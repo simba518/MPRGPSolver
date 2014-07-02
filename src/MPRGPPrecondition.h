@@ -23,15 +23,6 @@ namespace MATH{
 	}
 	void setMatrix(const MAT& matrix){}
 
-	static void MASK_FACE(const Vec& in,Vec& out,const std::vector<char>& face){
-	  OMP_PARALLEL_FOR_
-		for(size_t i=0;i<in.size();i++)
-		  if( 0 != face[i])
-			out[i]=0.0f;
-		  else 
-			out[i]=in[i];
-	}
-
   protected:
 	const vector<char>& _face;
   };

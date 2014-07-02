@@ -17,16 +17,104 @@ namespace MATH{
 	MPRGP(const MAT &A,const Vec &B,
 		  PRECONDITION &precond, PROJECTOIN &projector,
 		  const int max_it = 1000, const T tol=1e-3):
-	  _A(A), _B(B), _maxIterations(max_it), _toleranceFactor(tol),
-	  _precond(precond), _projector(projector){
+	  _A(A), _B(B), _precond(precond), _projector(projector){
 	  
+	  setParameters(tol,max_it);
+	  _Gamma=1.0f;
+	  _alphaBar=2.0f/specRad(_A);
 	}
 	
-	int solve(Vec &x){
-	  /// @todo
-	  return 0;
+	int solve(Vec &result){
+	  
+	  //declaration
+	  T alphaCG,alphaF,beta;
+	  Vec& AP=_gp;
+	  Vec& AD=_gp;
+	  Vec& y=_beta;	
+	  Vec& xTmp=_beta;
+	  Vec& D=_phi;
+
+	  //initialization
+	  _A.multiply(result,_g);
+	  _g -= _B;
+	  _projector.DECIDE_FACE(result);
+	  _precond.solve(_g,_z);
+	  _p = _z;
+	  int result_code = -1;
+	  
+	  //MPRGP iteration
+	  for(size_t iteration=0;iteration<_maxIterations;iteration++){
+
+		//test termination
+		_projector.PHI(_g,_phi);
+		_projector.BETA(_g,_beta);
+		_gp = _phi+_beta;
+		_residualOut=_gp.norm();
+		if(_residualOut < _toleranceFactor){
+		  _iterationsOut=iteration;
+		  result_code = 0;
+		  break;
+		}
+
+		//test proportional x: beta*beta <= gamma*gamma*phi*phiTilde
+		const T beta_norm = _beta.norm();
+		if(beta_norm*beta_norm <= _Gamma*_Gamma*_projector.PHITPHI(result,_alphaBar,_phi)){
+
+		  //prepare conjugate gradient
+		  _A.multiply(_p,AP);
+		  alphaCG = (_z.dot(_g)) / (_p.dot(AP));
+		  y = result-alphaCG*_p;
+		  alphaF = _projector.stepLimit(result,_p);
+		  
+		  if(alphaCG <= alphaF){
+
+			//conjugate gradient step
+			result = y;
+			_g -= alphaCG*AP;
+			_precond.solve(_g,_z);
+			beta = (_z.dot(AP)) / (_p.dot(AP));
+			_p = _z-beta*_p;
+
+		  }else{
+			
+			//expansion step
+			xTmp = result-alphaF*_p;
+			_g -= alphaF*AP;
+			_projector.DECIDE_FACE(xTmp);
+			_projector.PHI(_g, _phi);
+			xTmp -= _alphaBar*_phi;
+			_projector.project(xTmp,result);
+			_A.multiply(result,_g);
+			_g -= _B;
+			_projector.DECIDE_FACE(result);
+			_precond.solve(_g,_z);
+			_p = _z;
+
+		  }
+		}else{
+		  
+		  //proportioning
+		  D = _beta;
+		  _A.multiply(D,AD);
+		  alphaCG = (_g.dot(D)) / (D.dot(AD));
+		  result -= alphaCG*D;
+		  _g -= alphaCG*AD;
+		  _projector.DECIDE_FACE(result);
+		  _precond.solve(_g,_z);
+		  _p = _z;
+
+		}
+	  }
+
+	  return result_code;
 	}
 
+	void setParameters(T toleranceFactor,size_t maxIterations) {
+	  _maxIterations=maxIterations;
+	  _toleranceFactor=toleranceFactor;
+	  if(_toleranceFactor<1e-30f)
+		_toleranceFactor=1e-30f;
+	}
 	size_t iterationsOut()const{return _iterationsOut;}
 	T residualOut()const{return _residualOut;}
 	static T specRad(const MAT& G,Vec* ev=NULL,const T& eps=1E-3f){

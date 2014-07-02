@@ -48,6 +48,9 @@ namespace MATH{
 		for(size_t i=0;i<in.size();i++)
 		  out[i]=std::max<T>(in[i],_L[i]);
 	}
+	void PHI(const Vec& in,Vec& out){
+	  MASK_FACE(in,out,_face);
+	}
 	void BETA(const Vec& in,Vec& out){
 
 	  OMP_PARALLEL_FOR_
@@ -127,6 +130,9 @@ namespace MATH{
 	  OMP_PARALLEL_FOR_
 		for(size_t i=0;i<in.size();i++)
 		  out[i]=std::min<T>(std::max<T>(in[i],_L[i]),_H[i]);
+	}
+	void PHI(const Vec& in,Vec& out){
+	  MASK_FACE(in,out,_face);
 	}
 	void BETA(const Vec& in,Vec& out){
 	  OMP_PARALLEL_FOR_
