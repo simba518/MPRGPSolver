@@ -1,3 +1,6 @@
+#ifndef _MPRGPSOLVER_H_
+#define _MPRGPSOLVER_H_
+
 #include "MPRGPPrecondition.h"
 #include "MPRGPProjection.h"
 
@@ -18,7 +21,7 @@ namespace MATH{
 		  PRECONDITION &precond, PROJECTOIN &projector,
 		  const int max_it = 1000, const T tol=1e-3):
 	  _A(A), _B(B), _precond(precond), _projector(projector){
-	  
+
 	  setParameters(tol,max_it);
 	  _Gamma=1.0f;
 	  _alphaBar=2.0f/specRad(_A);
@@ -41,13 +44,14 @@ namespace MATH{
 	  _precond.solve(_g,_z);
 	  _p = _z;
 	  int result_code = -1;
-	  
+
 	  //MPRGP iteration
 	  for(size_t iteration=0;iteration<_maxIterations;iteration++){
 
 		//test termination
 		_projector.PHI(_g,_phi);
 		_projector.BETA(_g,_beta);
+		assert_eq(_phi.size(), _beta.size());
 		_gp = _phi+_beta;
 		_residualOut=_gp.norm();
 		if(_residualOut < _toleranceFactor){
@@ -186,6 +190,7 @@ namespace MATH{
 	}
 	template <typename VEC,typename VEC_OUT>
 	void multiply(const VEC& x,VEC_OUT& result)const{
+	  assert_eq(A.cols(), x.size());
 	  result = A*x;
 	}
 	int rows()const{
@@ -211,9 +216,9 @@ namespace MATH{
 	template <typename MAT>
 	static int solve(const MAT&A,const Vec&B,const Vec&L,Vec &x,const T tol=1e-3,const int max_it=1000){
 	  
-	  LowerBoundProjector<T,MAT> projector(L);
+	  LowerBoundProjector<T> projector(L);
 	  DiagonalInFacePreconSolver<T,MAT> precond(A, projector.getFace());
-	  MPRGP<T, MAT, LowerBoundProjector<T,MAT>, DiagonalInFacePreconSolver<T,MAT> > solver(A, B, precond, projector, max_it, tol);
+	  MPRGP<T, MAT, LowerBoundProjector<T>, DiagonalInFacePreconSolver<T,MAT> > solver(A, B, precond, projector, max_it, tol);
 	  return solver.solve(x);
 	}
   };
@@ -227,11 +232,13 @@ namespace MATH{
 	template <typename MAT> 
 	static int solve(const MAT &A,const Vec &B, const Vec &L, const Vec &U, Vec &x, const T tol=1e-3, const int max_it = 1000){
 
-	  BoxBoundProjector<T,MAT> projector(L, U);
+	  BoxBoundProjector<T> projector(L, U);
 	  DiagonalInFacePreconSolver<T,MAT> precond(A, projector.getFace());
-	  MPRGP<T, MAT, BoxBoundProjector<T,MAT>, DiagonalInFacePreconSolver<T,MAT> > solver(A, B, precond, projector, max_it, tol);
+	  MPRGP<T, MAT, BoxBoundProjector<T>, DiagonalInFacePreconSolver<T,MAT> > solver(A, B, precond, projector, max_it, tol);
 	  return solver.solve(x);
 	}
   };
   
 }//end of namespace
+
+#endif /* _MPRGPSOLVER_H_ */

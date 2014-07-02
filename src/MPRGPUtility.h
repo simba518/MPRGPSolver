@@ -32,6 +32,8 @@ namespace MATH{
   template<typename VECTOR>
   inline void MASK_FACE(const VECTOR& in,VECTOR& out,const std::vector<char>& face){
 
+	out.resize(in.size());
+	assert(in.size() == face.size());
 	OMP_PARALLEL_FOR_
 	  for(size_t i=0;i<in.size();i++)
 		if( 0 != face[i])

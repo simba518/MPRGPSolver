@@ -1,3 +1,6 @@
+#ifndef _MPRGPPROJECTION_H_
+#define _MPRGPPROJECTION_H_
+
 #include <stdio.h>
 #include <vector>
 #include <eigen3/Eigen/Sparse>
@@ -10,7 +13,7 @@ namespace MATH{
 
   // PROJECTOIN ----------------------------------------------------------------
   // support only lower bound constraints such that: x >= L.
-  template <typename T, typename MAT >
+  template <typename T>
   class LowerBoundProjector{
 
 	typedef Eigen::Matrix<T,-1,1> Vec;
@@ -24,53 +27,70 @@ namespace MATH{
 	  return _face;
 	}
 
+	// return the largest step in direction -D.
 	T stepLimit(const Vec& X,const Vec& D) const{
 
+	  assert_eq(D.size(), X.size());
+	  assert_eq(_L.size(), X.size());
 	  T ret=ScalarUtil<T>::scalar_max;
 	  T tmp;
 #pragma omp parallel private(tmp)
 	  {
 		tmp=ScalarUtil<T>::scalar_max;
 #pragma omp for
-		for(size_t i=0;i<X.size();i++)
-		  {
-			if(D[i] > ScalarUtil<T>::scalar_eps && X[i] > _L[i])	//handle rounding err
-			  tmp=std::min<T>(tmp,(X[i]-_L[i])/D[i]);
-		  }
+		for(size_t i=0;i<X.size();i++){
+		  if(D[i] > ScalarUtil<T>::scalar_eps && X[i] > _L[i])	//handle rounding err
+			tmp=std::min<T>(tmp,(X[i]-_L[i])/D[i]);
+		}
 
 		OMP_CRITICAL_
 		  ret=std::min<T>(ret,tmp);
 	  }
 	  return ret;
 	}
+
+	// project the point 'in' onto the feasible domain.
 	void project(const Vec& in,Vec& out) const{
+	  assert_eq(in.size(), _L.size());
+	  out.resize(_L.size());
 	  OMP_PARALLEL_FOR_
 		for(size_t i=0;i<in.size();i++)
 		  out[i]=std::max<T>(in[i],_L[i]);
 	}
+
 	void PHI(const Vec& in,Vec& out){
 	  MASK_FACE(in,out,_face);
 	}
+
 	void BETA(const Vec& in,Vec& out){
 
+	  assert_eq(in.size(), _face.size());
+	  out.resize(in.size());
 	  OMP_PARALLEL_FOR_
 		for(size_t i=0;i<in.rows();i++){
 		  if( 0 == _face[i])
 			out[i]=0.0f;
 		  else
-			out[i]=std::max<T>(in[i],0.0f);
+			out[i]=std::min<T>(in[i],0.0f);
 		}
 	}
+
 	void DECIDE_FACE(const Vec& x){
+
+	  assert_eq(x.size(), _L.size());
+	  assert_eq(x.size(), _face.size());
 	  const Vec& L = _L;
-	  _face.assign(x.rows(),0);
+	  _face.assign(x.size(),0);
 	  OMP_PARALLEL_FOR_
-		for(size_t i=0;i<x.rows();i++)
-		  if(abs(x[i]-L[i]) < ScalarUtil<T>::scalar_eps)
+		for(size_t i=0;i<x.size();i++)
+		  if(abs(x[i]-L[i]) < ScalarUtil<T>::scalar_eps) /// @bug ?
 			_face[i]=-1;
 	}
+
 	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi){
 
+	  assert_eq(x.size(), _L.size());
+	  assert_eq(x.size(), phi.size());
 	  const Vec &L = _L;
 	  T phiTphi=0.0f;
 #pragma omp parallel for reduction(+:phiTphi)
@@ -90,7 +110,7 @@ namespace MATH{
   };
 
   // support box boundary constraints such that: H >= x >= L.
-  template <typename T,typename MAT>
+  template <typename T>
   class BoxBoundProjector{
 
 	typedef Eigen::Matrix<T,-1,1> Vec;
@@ -107,6 +127,9 @@ namespace MATH{
 
 	T stepLimit(const Vec& X,const Vec& D) const{
 
+	  assert_eq(D.size(), X.size());
+	  assert_eq(_L.size(), X.size());
+	  assert_eq(_H.size(), X.size());
 	  T ret=ScalarUtil<T>::scalar_max;
 	  T tmp;
 #pragma omp parallel private(tmp)
@@ -127,6 +150,8 @@ namespace MATH{
 	  return ret;
 	}
 	void project(const Vec& in,Vec& out) const{
+	  assert_eq(in.size(), _L.size());
+	  out.resize(_L.size());
 	  OMP_PARALLEL_FOR_
 		for(size_t i=0;i<in.size();i++)
 		  out[i]=std::min<T>(std::max<T>(in[i],_L[i]),_H[i]);
@@ -135,6 +160,9 @@ namespace MATH{
 	  MASK_FACE(in,out,_face);
 	}
 	void BETA(const Vec& in,Vec& out){
+	  
+	  assert_eq(in.size(), _face.size());
+	  out.resize(in.size());
 	  OMP_PARALLEL_FOR_
 		for(size_t i=0;i<in.rows();i++){
 		  if(_face[i] == 0)
@@ -147,6 +175,9 @@ namespace MATH{
 	}
 	void DECIDE_FACE(const Vec& x){
 
+	  assert_eq(x.size(), _L.size());
+	  assert_eq(x.size(), _H.size());
+	  assert_eq(x.size(), _face.size());
 	  const Vec &L = _L;
 	  const Vec &H = _H;
 	  _face.assign(x.rows(),0);
@@ -159,6 +190,9 @@ namespace MATH{
 	}
 	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi){
 
+	  assert_eq(x.size(), _L.size());
+	  assert_eq(x.size(), _H.size());
+	  assert_eq(x.size(), phi.size());
 	  const Vec &L = _L;
 	  const Vec &H = _H;
 	  T phiTphi=0.0f;
@@ -182,3 +216,5 @@ namespace MATH{
   };
 
 }//end of namespace
+
+#endif /* _MPRGPPROJECTION_H_ */

@@ -1,5 +1,5 @@
-#include <MPRGPSolver.h>
-using namespace MATH;
+#include "test_solver.h"
+#include "test_projection.h"
 
 #include <float.h>
 float ScalarUtil<float>::scalar_max=FLT_MAX;
@@ -9,13 +9,10 @@ double ScalarUtil<double>::scalar_eps=1E-9;
 
 int main(int argc, char *argv[]){
 
-  const int n = 10;
-  SparseMatrix<double> A(n,n);
-  const VectorXd b = VectorXd::Random(n);
-  VectorXd L(n), x(n);
-  MPRGPLowerBound<double>::solve(FixedSparseMatrix<double>(A),b,L,x);
-
-  cout<< "residual: " << (A*x-b).norm() << endl;
-  
+  test_LowerBoundProjector();
+  test1DSolverLB();
+  test2DSolverLB();
+  test1DSolverBB();
+  test2DSolverBB();
   return 0;
 }

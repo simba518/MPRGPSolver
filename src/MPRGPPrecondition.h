@@ -1,3 +1,6 @@
+#ifndef _MPRGPPRECONDITION_H_
+#define _MPRGPPRECONDITION_H_
+
 #include <stdio.h>
 #include <vector>
 #include <eigen3/Eigen/Sparse>
@@ -37,6 +40,8 @@ namespace MATH{
 	DiagonalInFacePreconSolver(const MAT &M,const vector<char>& face):_matrix(M),_face(face){}
 	int solve(const Vec&rhs, Vec&result){
 
+	  result.resize(rhs.size());
+	  assert_eq(_face.size(), rhs.size());
 	  for(size_t i=0; i<rhs.size(); i++){
 		if( 0 == _face[i] )
 		  result[i]=rhs[i]/_matrix.diag(i);
@@ -52,3 +57,6 @@ namespace MATH{
   };
   
 }//end of namespace
+
+
+#endif /* _MPRGPPRECONDITION_H_ */
