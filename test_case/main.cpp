@@ -1,5 +1,6 @@
 #include "test_solver.h"
 #include "test_projection.h"
+#include "test_ActiveSet3D.h"
 
 #include <float.h>
 float ScalarUtil<float>::scalar_max=FLT_MAX;

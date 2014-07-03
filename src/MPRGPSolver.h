@@ -25,6 +25,8 @@ namespace MATH{
 	  setParameters(tol,max_it);
 	  _Gamma=1.0f;
 	  _alphaBar=2.0f/specRad(_A);
+	  _iterationsOut = 0;
+	  _residualOut = 0.0f;
 	}
 	
 	int solve(Vec &result){
@@ -46,7 +48,8 @@ namespace MATH{
 	  int result_code = -1;
 
 	  //MPRGP iteration
-	  for(size_t iteration=0;iteration<_maxIterations;iteration++){
+	  size_t iteration=0;
+	  for(; iteration<_maxIterations; iteration++){
 
 		//test termination
 		_projector.PHI(_g,_phi);
@@ -110,6 +113,9 @@ namespace MATH{
 		}
 	  }
 
+	  if (iteration >= _maxIterations){
+		cout << "not convergent with "<< _maxIterations << " iterations."<<endl;
+	  }
 	  return result_code;
 	}
 
@@ -235,7 +241,8 @@ namespace MATH{
 	  BoxBoundProjector<T> projector(L, U);
 	  DiagonalInFacePreconSolver<T,MAT> precond(A, projector.getFace());
 	  MPRGP<T, MAT, BoxBoundProjector<T>, DiagonalInFacePreconSolver<T,MAT> > solver(A, B, precond, projector, max_it, tol);
-	  return solver.solve(x);
+	  const int rlst_code = solver.solve(x);
+	  return rlst_code;
 	}
   };
   

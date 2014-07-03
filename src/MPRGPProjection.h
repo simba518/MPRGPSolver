@@ -83,7 +83,7 @@ namespace MATH{
 	  _face.assign(x.size(),0);
 	  OMP_PARALLEL_FOR_
 		for(size_t i=0;i<x.size();i++)
-		  if(abs(x[i]-L[i]) < ScalarUtil<T>::scalar_eps) /// @bug ?
+		  if(abs(x[i]-L[i]) < ScalarUtil<T>::scalar_eps)
 			_face[i]=-1;
 	}
 
@@ -98,7 +98,7 @@ namespace MATH{
 		T phiTilde=0.0f;
 		if(phi[i] > 0.0f && x[i] > L[i])	//handle rounding error
 		  phiTilde=std::min<T>((x[i]-L[i])/alphaBar,phi[i]);
-		assert(phiTilde*phi[i] >= 0.0f);
+		assert_ge(phiTilde*phi[i], 0.0f);
 		phiTphi+=phiTilde*phi[i];
 	  }
 	  return phiTphi;
@@ -203,7 +203,7 @@ namespace MATH{
 		  phiTilde=std::min<T>((x[i]-L[i])/alphaBar,phi[i]);
 		else if(phi[i] < 0.0f && x[i] < H[i])	//handle rounding error
 		  phiTilde=std::max<T>((x[i]-H[i])/alphaBar,phi[i]);
-		assert(phiTilde*phi[i] >= 0.0f);
+		assert_ge(phiTilde*phi[i], 0.0f);
 		phiTphi+=phiTilde*phi[i];
 	  }
 	  return phiTphi;
