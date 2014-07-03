@@ -1,0 +1,85 @@
+\documentclass[9pt,twocolumn]{extarticle}
+
+\usepackage[hmargin=0.5in,tmargin=0.5in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{times}
+\usepackage{graphicx}
+\usepackage{subfigure}
+
+\usepackage{cleveref}
+\usepackage{color}
+\newcommand{\TODO}[1]{\textcolor{red}{#1}}
+
+\newcommand{\FPP}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\argmin}{\operatornamewithlimits{arg\ min}}
+\author{Siwang Li}
+
+\title{MPRGP extension}
+
+%% document begin here
+\begin{document}
+\maketitle
+
+\setlength{\parskip}{0.5ex}
+
+\section{Step Limit}
+Given a point $x\in R^{3n}$ and a direction $d\in R^{3n}$, we compute 
+\begin{equation} 
+  \alpha = \max_{\alpha}\{\alpha\ge 0: x+\alpha d\in \Omega_B\}
+\end{equation}
+For each $x_i,d_i\in R^3$, we compute
+\begin{equation}
+  \alpha_i=\left\{ \begin{array}{rl}
+      0, & d_i\cdot n_j > 0\\
+      \alpha_i:x_i+\alpha_id \in P_j, & d_i\cdot n_j <= 0
+    \end{array} \right.
+\end{equation}
+
+for each plane $P_j$ with norm of $n_j$. Finally, we compute
+\begin{equation} 
+  \alpha = \min \alpha_i
+\end{equation}
+
+\section{Project $P_{\Omega_B}$}
+Given an point $x_i\in R^3$, we project it to the feasible region $y_i=P_{\Omega_B}(x_i)$ by solving
+\begin{equation} 
+  y_i = \min_{y} \frac{1}{2}\|y-x_i\|_2^2 \mbox{, s.t. }y \cdot n_j + d_j \ge 0 \mbox{ for each plane }(n_j,d_j).
+\end{equation}
+
+\section{Compute $\phi$}
+Given the gradient $g_i(x_i)\in R^3$, then
+\begin{equation}
+  \phi_i = \left\{ \begin{array}{rl}
+     g_i & p_N = 0\\
+     g_i \mbox{ project on plane} & p_N = 1\\
+     g_i \mbox{ project on line}& p_N = 2\\
+     0 & p_N \ge 3\\
+    \end{array} \right.
+\end{equation}
+where $p_N$ is the number of planes that $x_i$ belong to.
+
+\section{Compute $\beta$}
+Given the gradient $g_i(x_i)\in R^3$, then
+\begin{equation} 
+  \beta_i = \min_{\beta} \frac{1}{2}\|\beta-g_i\|_2^2 \mbox{, s.t. } \beta \cdot n_j \ge 0 \mbox{ for } j\in P_i \mbox{, and } \beta \cdot \phi_i=0.
+\end{equation}
+Here $P_i$ is the planes that contains $x_i$. If $|P_i|=0$, then $\beta_i=0$.
+
+\section{Decide Face}
+
+
+\section{Compute $\tilde{\phi}$}
+According to the equation (5.64) in the book \cite{book}, we have
+\begin{equation}
+  \tilde{\phi}(x_j,{\alpha}) = \frac{1}{\alpha}x_i-\beta_i(x_i)-\frac{1}{\alpha} P_{\Omega_B}(x_i-\alpha g(x_i))
+\end{equation}
+
+\section{Diagonal Precondition}
+For each $x_i\in R^{3}$, if $|P_i| > 0$, then the three corresponding $3$ elements in the Diagonal Precondition Matrix $M$ is 1. Otherwise it is equal to the inverse of the diagonal elements of the input SPD matrix $A$.
+
+% references
+\begin{thebibliography}{99}
+\bibitem{book} Optimal Quadratic Programming Algorithms With Applications to Variational Inequalities.
+\end{thebibliography}
+
+\end{document}
