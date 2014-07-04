@@ -82,9 +82,11 @@ namespace MATH{
 	  const Vec& L = _L;
 	  _face.assign(x.size(),0);
 	  OMP_PARALLEL_FOR_
-		for(size_t i=0;i<x.size();i++)
+		for(size_t i=0;i<x.size();i++){
 		  if(abs(x[i]-L[i]) < ScalarUtil<T>::scalar_eps)
 			_face[i]=-1;
+		}
+
 	}
 
 	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi,const Vec&beta, const Vec&g){
@@ -222,9 +224,10 @@ namespace MATH{
 	typedef Eigen::Matrix<T,-1,1> Vec;
 	typedef Eigen::Matrix<T,4,1> Vec4X;
 	typedef Eigen::Matrix<T,3,1> Vec3X;
-	
+	typedef vector<Vec4X,Eigen::aligned_allocator<Vec4X> > VVec4X;
+
   public:
-    PlaneProjector(const vector<Vec4X> &planes, const size_t x_size):_planes(planes){
+    PlaneProjector(const VVec4X &planes, const size_t x_size):_planes(planes){
 
 	  assert_ge(x_size,0);
 	  assert_eq(x_size%3,0);
@@ -237,7 +240,9 @@ namespace MATH{
 		_face_indices[i].reserve(3);
 	}
 
-	const vector<char> &getFace()const{return _face;}
+	const vector<char> &getFace()const{
+	  return _face;
+	}
 
 	// return the largest step in direction -D.
 	T stepLimit(const Vec& X,const Vec& D) const{
@@ -249,22 +254,23 @@ namespace MATH{
 	  T alpha = ScalarUtil<T>::scalar_max;
 	  for (size_t i = 0; i < num_points; ++i){
 
-		const Vec3X di = D.block(i*3,0,3,1);
-		const Vec3X xi = X.block(i*3,0,3,1);
-		for (size_t j = 0; j < _planes.size(); ++j){
+	  	const Vec3X di = D.block(i*3,0,3,1);
+	  	const Vec3X xi = X.block(i*3,0,3,1);
+	  	for (size_t j = 0; j < _planes.size(); ++j){
 
-		  const Vec3X nj = _planes[j].block(0,0,3,1);
-		  assert_in(nj.norm(),1.0-ScalarUtil<T>::scalar_eps,1.0+ScalarUtil<T>::scalar_eps);
-		  const T nd = nj.dot(di);
-		  if ( fabs(nd) > ScalarUtil<T>::scalar_eps ){
-			const T alpha_ij = (nj.dot(xi)+_planes[j][3])/nd;
-			if (alpha_ij > ScalarUtil<T>::scalar_eps)
-			  alpha = std::min<T>(alpha, alpha_ij);
-		  }
-		}
+	  	  const Vec3X nj = _planes[j].block(0,0,3,1);
+	  	  assert_in(nj.norm(),1.0f-ScalarUtil<T>::scalar_eps,1.0f+ScalarUtil<T>::scalar_eps);
+	  	  const T nd = nj.dot(di);
+	  	  if ( fabs(nd) > ScalarUtil<T>::scalar_eps ){
+	  		const T alpha_ij = (nj.dot(xi)+_planes[j][3])/nd;
+	  		if (alpha_ij > ScalarUtil<T>::scalar_eps)
+	  		  alpha = std::min<T>(alpha, alpha_ij);
+	  	  }
+	  	}
 	  }
 	  assert_ge(alpha, 0.0f);
 	  return alpha;
+
 	}
 
 	void project(const Vec& in,Vec& out) const{
@@ -276,10 +282,10 @@ namespace MATH{
 	  Vec3X v;
 	  Vector3i aSet;
 	  for (int i = 0; i < in.size(); i += 3){
-		aSet.setConstant(-1);
-		const bool found = findClosestPoint( _planes, in.block(i,0,3,1), v, aSet );
-		assert(found);
-		out.block(i,0,3,1) = v;
+	  	aSet.setConstant(-1);
+	  	const bool found = findClosestPoint( _planes, in.block(i,0,3,1), v, aSet);
+	  	assert(found);
+	  	out.block(i,0,3,1) = v;
 	  }
 	}
 
@@ -292,29 +298,28 @@ namespace MATH{
 	  temp.setZero();
 	  for (int i = 0; i < in.size(); i += 3){
 
-		assert_eq(_face[i], _face_indices[i/3].size());
-		if (3 <= _face[i]){
+	  	assert_eq(_face[i], _face_indices[i/3].size());
+	  	if (3 <= _face[i]){
 
-		  out.block(i,0,3,1).setZero();
+	  	  out.block(i,0,3,1).setZero();
 
-		}else if (2 == _face[i]){
+	  	}else if (2 == _face[i]){
 
-		  projectToPlane(_face_indices[i/3][0], in.block(i,0,3,1), temp);
-		  out.block(i,0,3,1) = temp;
-		  projectToPlane(_face_indices[i/3][1], out.block(i,0,3,1), temp);
-		  out.block(i,0,3,1) = temp;
+	  	  projectToPlane(_face_indices[i/3][0], in.block(i,0,3,1), temp);
+	  	  out.block(i,0,3,1) = temp;
+	  	  projectToPlane(_face_indices[i/3][1], out.block(i,0,3,1), temp);
+	  	  out.block(i,0,3,1) = temp;
 		  
-		}else if (1 == _face[i]){
+	  	}else if (1 == _face[i]){
 
-		  projectToPlane(_face_indices[i/3][0], in.block(i,0,3,1), temp);
-		  out.block(i,0,3,1) = temp;
-
-		}
+	  	  projectToPlane(_face_indices[i/3][0], in.block(i,0,3,1), temp);
+	  	  out.block(i,0,3,1) = temp;
+	  	}
 	  }
 	}
 
 	void BETA(const Vec& in, Vec& out, const Vec&phi){
-	  
+
 	  const size_t num_points = _face_indices.size();
 	  assert_eq(in.size(),num_points*3);
 	  out.resize(in.size());
@@ -324,18 +329,17 @@ namespace MATH{
 	  temp.setZero();
 	  for (int i = 0; i < in.size(); i += 3){
 
-		assert_eq(_face[i], _face_indices[i/3].size());
-		if (1 == _face[i]){
-		  const Vec3X n = _planes[_face_indices[i/3][0]].block(0,0,3,1);
-		  const T t = in.block(i,0,3,1).dot(n);
-		  if (t < 0)
-			out.block(i,0,3,1) = t*n;
-		}else if (_face[i]>=2){
-		  const bool found = findClosestPoint( _planes, _face_indices[i/3], in.block(i,0,3,1), phi.block(i,0,3,1), temp );
-		  assert(found);
-		  out.block(i,0,3,1) = temp;
-		  
-		}
+	  	assert_eq(_face[i], _face_indices[i/3].size());
+	  	if (1 == _face[i]){
+	  	  const Vec3X n = _planes[_face_indices[i/3][0]].block(0,0,3,1);
+	  	  const T t = in.block(i,0,3,1).dot(n);
+	  	  if (t < 0)
+	  		out.block(i,0,3,1) = t*n;
+	  	}else if (_face[i]>=2){
+	  	  const bool found = findClosestPoint( _planes, _face_indices[i/3], in.block(i,0,3,1), phi.block(i,0,3,1), temp );
+	  	  assert(found);
+	  	  out.block(i,0,3,1) = temp;
+	  	}
 	  }
 	}
 
@@ -343,21 +347,18 @@ namespace MATH{
 
 	  const size_t num_points = _face_indices.size();
 	  assert_eq(x.size(),num_points*3);
-	  
-	  Vec3X v;
-	  Vector3i aSet;
 	  for (int i = 0; i < num_points; i++ ){
-		aSet.setConstant(-1);
-		const bool found = findClosestPoint( _planes, x.block(i*3,0,3,1), v, aSet );
-		assert(found);
-		_face_indices[i].clear();
-		for (int j = 0; j < aSet.size(); ++j){
-		  if (aSet[j] >= 0)
-			_face_indices[i].push_back(aSet[j]);
-		}
-		_face[i*3] = _face_indices[i].size();
-		_face[i*3+1] = _face[i*3];
-		_face[i*3+2] = _face[i*3];
+	  	_face_indices[i].clear();
+		Vec3X xi = x.block(i*3,0,3,1);
+	  	for (int f = 0; f < _planes.size(); ++f){
+		  const T d = dist(_planes[f],xi);
+	  	  if ( fabs(d) < ScalarUtil<T>::scalar_eps ){
+	  		_face_indices[i].push_back(f);
+		  }
+	  	}
+	  	_face[i*3] = _face_indices[i].size();
+	  	_face[i*3+1] = _face[i*3];
+	  	_face[i*3+2] = _face[i*3];
 	  }
 	}
 
@@ -382,7 +383,7 @@ namespace MATH{
 	}
 	
   private:
-	const vector<Vec4X> &_planes;
+	const VVec4X &_planes;
 	vector<char> _face;
 	vector<vector<int> > _face_indices;
   };

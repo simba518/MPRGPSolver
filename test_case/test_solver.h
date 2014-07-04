@@ -135,17 +135,22 @@ void testMPRGPPlaneSolver3D(){
   b << 0,0,0;
   x << 2,2,2;
 
-  vector<Vector4d> planes;
+  vector<Vector4d,aligned_allocator<Vector4d> > planes;
   Vector4d p;
-  p << 1,0,0,1;
+  p << 1,0,0,-1;
+  planes.push_back(p);
+
+  p << 0,1,0,-2;
+  planes.push_back(p);
+
+  p << 0,0,1,3;
   planes.push_back(p);
 
   const int rlst_code = MPRGPPlane<double>::solve(FixedSparseMatrix<double>(A),b,planes,x);
-  cout<< "x = " << x.transpose() << endl;
   assert_eq(rlst_code,0);
   assert_eq(x[0],1);
-  assert_eq(x[1],1);
-  assert_eq(x[2],1);
+  assert_eq(x[1],2);
+  assert_eq(x[2],0);
 }
 
 #endif /* _TEST_SOLVER_H_ */

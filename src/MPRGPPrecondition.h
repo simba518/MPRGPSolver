@@ -43,10 +43,10 @@ namespace MATH{
 	  result.resize(rhs.size());
 	  assert_eq(_face.size(), rhs.size());
 	  for(size_t i=0; i<rhs.size(); i++){
-		if( 0 == _face[i] )
+		// if( 0 == _face[i] )
 		  result[i]=rhs[i]/_matrix.diag(i);
-		else
-		  result[i]=0.0f;
+		// else
+		//   result[i]=0.0f;
 	  }
 	  return 0;
 	}

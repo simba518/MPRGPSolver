@@ -43,7 +43,10 @@ namespace MATH{
 	  _A.multiply(result,_g);
 	  _g -= _B;
 	  _projector.DECIDE_FACE(result);
-	  _precond.solve(_g,_z);
+
+	  _projector.PHI(_g, _phi);
+	  _precond.solve(_phi,_z);
+	  // _precond.solve(_g,_z);
 	  _p = _z;
 	  int result_code = -1;
 
@@ -78,7 +81,10 @@ namespace MATH{
 			//conjugate gradient step
 			result = y;
 			_g -= alphaCG*AP;
-			_precond.solve(_g,_z);
+
+			_projector.PHI(_g, _phi);
+			_precond.solve(_phi,_z);
+			// _precond.solve(_g,_z);
 			beta = (_z.dot(AP)) / (_p.dot(AP));
 			_p = _z-beta*_p;
 
@@ -94,7 +100,11 @@ namespace MATH{
 			_A.multiply(result,_g);
 			_g -= _B;
 			_projector.DECIDE_FACE(result);
-			_precond.solve(_g,_z);
+
+			_projector.PHI(_g, _phi);
+			_precond.solve(_phi,_z);
+
+			// _precond.solve(_g,_z);
 			_p = _z;
 
 		  }
@@ -107,7 +117,10 @@ namespace MATH{
 		  result -= alphaCG*D;
 		  _g -= alphaCG*AD;
 		  _projector.DECIDE_FACE(result);
-		  _precond.solve(_g,_z);
+
+		  _projector.PHI(_g, _phi);
+		  _precond.solve(_phi,_z);
+		  // _precond.solve(_g,_z);
 		  _p = _z;
 
 		}
@@ -251,10 +264,11 @@ namespace MATH{
 
 	typedef Eigen::Matrix<T,-1,1> Vec;
 	typedef Eigen::Matrix<T,4,1> Vec4X;
+	typedef vector<Vec4X,Eigen::aligned_allocator<Vec4X> > VVec4X;
 	
   public:
 	template <typename MAT>
-	static int solve(const MAT &A,const Vec &B, const vector<Vec4X> &planes, Vec &x, const T tol=1e-3, const int max_it = 1000){
+	static int solve(const MAT &A,const Vec &B, const VVec4X &planes, Vec &x, const T tol=1e-3, const int max_it = 1000){
 
 	  assert_eq(A.rows(),B.size());
 	  assert_eq(A.rows(),x.size());

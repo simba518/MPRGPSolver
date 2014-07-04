@@ -12,6 +12,7 @@ int main(int argc, char *argv[]){
 
   test_LowerBoundProjector();
   test_PlaneProjector();
+  test_OnePlaneProjector();
 
   test1DSolverLB();
   test2DSolverLB();

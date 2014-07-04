@@ -19,6 +19,7 @@ typedef Eigen::Vector3d Vec3d;
 typedef Eigen::Vector3i Vec3i;
 typedef Eigen::Matrix3d Mat3d;
 typedef Eigen::Matrix2d Mat2d;
+typedef vector<Vector4d,aligned_allocator<Vector4d> > VVec4d;
 
 // the plane is defined as p[1:3].dot(y)+p=0.
 inline double dist(const Vec4d& p,const Vec3d& v){
@@ -68,7 +69,7 @@ inline bool findFeasible(const std::vector<Vec4d>& p,Vec3d& v){
 }
 
 // @bug If v0 is exactly on one of the plane[i], then the aSet won't include index i.
-inline bool findClosestPoint(const std::vector<Vec4d>& p,const Vec3d& v0,Vec3d& v,Vec3i& aSet,double eps=1E-18)
+inline bool findClosestPoint(const VVec4d& p,const Vec3d& v0,Vec3d& v,Vec3i& aSet,double eps=1E-18)
 {
 	//rearrange
 	char nrA=0;
@@ -133,8 +134,11 @@ inline bool findClosestPoint(const std::vector<Vec4d>& p,const Vec3d& v0,Vec3d& 
 					minLambda=lambda[d];
 				}
 			//aha, we have all negative lagrangian multiplier, exit now!
-			if(minA == -1)
-				return true;
+			if(minA == -1){
+			  for (int k = nrA; k < 3; ++k)
+				aSet[k] = -1;
+			  return true;
+			}
 			//for the most positive component, we remove it from active set
 			if(nrA > 1)
 			{
@@ -183,14 +187,19 @@ inline bool findClosestPoint(const std::vector<Vec4d>& p,const Vec3d& v0,Vec3d& 
 			{
 				//already in active set, so this is rounding error
 				for(char d=0;d<nrA;d++)
-					if(minA == aSet[d])
-						return false;
+					if(minA == aSet[d]){
+					  for (int k = nrA; k < 3; ++k)
+						aSet[k] = -1;
+					  return false;
+					}
 				//expand active set
 				aTag[minA]=true;
 				aSet[nrA++]=minA;
 			}
 		}
 	}
+	for (int k = nrA; k < 3; ++k)
+	  aSet[k] = -1;
 	return false;
 }
 
@@ -204,14 +213,14 @@ inline bool findClosestPoint(const std::vector<Vec4d>& p,const Vec3d& v0,Vec3d& 
 //           beta*phi=0.
 // 
 // The special case where phi=0 should be taken carefully.
-inline bool findClosestPoint(const std::vector<Vec4d>& p,const vector<int>&f,const Vec3d&g,const Vec3d& phi,Vec3d& beta,double eps=1E-18){
+inline bool findClosestPoint(const VVec4d& p,const vector<int>&f,const Vec3d&g,const Vec3d& phi,Vec3d& beta,double eps=1E-18){
 
   assert_ge(f.size(),2);
 
   Vec3i aSet;
   aSet.setConstant(-1);
   Vec3d v0 = -g;
-  std::vector<Vec4d> planes;
+  vector<Vector4d,aligned_allocator<Vector4d> > planes;
   planes.reserve(f.size());
   for (int i = 0; i < f.size(); ++i){
 	assert_in(f[i],0,p.size()-1);

@@ -61,10 +61,8 @@ void test_PlaneProjector(){
 
   // initialize
   VectorXd x(2*3), y(2*3);
-  vector<Vector4d> planes;
+  vector<Vector4d,aligned_allocator<Vector4d> > planes;
   {
-	x << 0.1,0.1,0.1,
-	  0.2,0.2,0.2;
 	
 	Vector4d p;
 	p << 1,0,0,0;
@@ -95,26 +93,30 @@ void test_PlaneProjector(){
 	d << 0.2,0.2,0.2,
 	  0.1,0.0,0.0;
 
+	x << 0.1,0.1,0.1,
+	  0.2,0.2,0.2;
 	const double t = P.stepLimit(x,d);
 	assert_eq(t,0.5);
   }
 
   // test project
   {
-	VectorXd px;
-	P.project(x, px);
-	assert_eq(x, px);
+  	VectorXd px;
+	x << 0.1,0.1,0.1,
+	  0.2,0.2,0.2;
+  	P.project(x, px);
+  	assert_eq(x, px);
 
-	x << -0.1,-0.1,-0.1,
-	  -0.2,0.2,0.2;
-	P.project(x, px);
-	y << 0,0,0,  0,0.2,0.2;
-	assert_eq(px,y);
+  	x << -0.1,-0.1,-0.1,
+  	  -0.2,0.2,0.2;
+  	P.project(x, px);
+  	y << 0,0,0,  0,0.2,0.2;
+  	assert_le((px-y).norm(),1e-12);
   }
 
   // test decide face
   {
-	y << -0.1,-0.1,-0.1,  -1e-9,0.2,0.2;
+	y << -0.0,-0.0,-0.0,  -0.0,0.2,0.2;
 	P.DECIDE_FACE(y);
 	const vector<char> &face = P.getFace();
 	assert_eq(face[0],3);
@@ -126,7 +128,7 @@ void test_PlaneProjector(){
 
 	// y[0] is on 2 plane,
 	// y[1] is on 1 plane.
-	y << -0.1,0.1,-0.1,  -1e-9,0.2,0.2;
+	y << -0.0,0.1,-0.0,  -0.0,0.2,0.2;
 	P.DECIDE_FACE(y);
 	const vector<char> &face2 = P.getFace();
 	assert_eq(face2[0],2);
@@ -139,62 +141,91 @@ void test_PlaneProjector(){
 
   // test PHI, BETA
   {
-	VectorXd g(6),phi(6),beta(6);
-	g << -0.2,-0.2,-0.2,  -0.1,-0.1,-0.1;
-	P.PHI(g, phi);
-	x << 0, -0.2,   0,   0, -0.1, -0.1;
-	assert_eq(phi,x);
+  	VectorXd g(6),phi(6),beta(6);
+  	g << -0.2,-0.2,-0.2,  -0.1,-0.1,-0.1;
+  	P.PHI(g, phi);
+  	x << 0, -0.2,   0,   0, -0.1, -0.1;
+  	assert_eq(phi,x);
 
-	// y[0] is on 1 planes,
-	// y[1] is free.
-	y << -0.1,0.1,0.1,  0.1,0.1,0.2;
-	P.DECIDE_FACE(y);
-	P.BETA(g,beta,phi);
-	x << -0.2,0,0,   0,0,0;
-	assert_eq(x,beta);
+  	// y[0] is on 1 planes,
+  	// y[1] is free.
+  	y << -0.0,0.1,0.1,  0.1,0.1,0.2;
+  	P.DECIDE_FACE(y);
+  	P.BETA(g,beta,phi);
+  	x << -0.2,0,0,   0,0,0;
+  	assert_eq(x,beta);
 
-	// y[0] is on 3 planes,
-	// y[1] is free.
-	y << -0.1,-0.1,-0.1,  0.1,0.1,0.2;
-	P.DECIDE_FACE(y);
+  	// y[0] is on 3 planes,
+  	// y[1] is free.
+  	y << -0.0,-0.0,-0.0,  0.1,0.1,0.2;
+  	P.DECIDE_FACE(y);
 
-	P.PHI(g, phi);
-	x << 0,   0,   0, -0.1,   -0.1, -0.1;
-	assert_eq(phi,x);
+  	P.PHI(g, phi);
+  	x << 0,0,0, -0.1,-0.1, -0.1;
+  	assert_eq(phi,x);
 
-	// g[0] point out of feasible regsion.
-	P.BETA(g,beta,phi);
-	x << -0.2,-0.2,-0.2,   0,0,0;
-	assert_eq(x,beta);
+  	// g[0] point out of feasible regsion.
+  	P.BETA(g,beta,phi);
+  	x << -0.2,-0.2,-0.2,   0,0,0;
+  	assert_eq(x,beta);
 
-	// g[0] point into feasible regsion.
-	g << 0.2,0.2,0.2,  -0.1,-0.1,-0.1;
-	P.BETA(g,beta,phi);
-	x << 0,0,0,   0,0,0;
-	assert_eq(x,beta);
+  	// g[0] point into feasible regsion.
+  	g << 0.2,0.2,0.2,  -0.1,-0.1,-0.1;
+  	P.BETA(g,beta,phi);
+  	x << 0,0,0,   0,0,0;
+  	assert_eq(x,beta);
 	
-	// test phi == 0
-	g << -0.2,-0.2,-0.2,  -0.1,-0.1,-0.1;
-	phi.setZero();
-	P.BETA(g,beta,phi);
-	x << -0.2,-0.2,-0.2,  0,0,0;
-	assert_eq(x,beta);
+  	// test phi == 0
+  	g << -0.2,-0.2,-0.2,  -0.1,-0.1,-0.1;
+  	phi.setZero();
+  	P.BETA(g,beta,phi);
+  	x << -0.2,-0.2,-0.2,  0,0,0;
+  	assert_eq(x,beta);
 
-	// y[0] is on 2 planes,
-	// y[1] is on 2 planes, but phi[1] = 0.
-	y << 0.1,-0.1,-0.1,  -0.1,-0.1,0.2;
-	P.DECIDE_FACE(y);
+  	// y[0] is on 2 planes,
+  	// y[1] is on 2 planes, but phi[1] = 0.
+  	y << 0.1,-0.0,-0.0,  -0.0,-0.0,0.2;
+  	P.DECIDE_FACE(y);
 
-	g << -0.2,-0.2,-0.2,  -0.1,-0.1,-0.1;
-	P.PHI(g, phi);
-	x << -0.2,0,0,   0,0,-0.1;
-	assert_eq(phi,x);
-	phi.tail(3).setZero();
-	P.BETA(g,beta,phi);
-	x << 0.0f,-0.2,-0.2,  -0.1,-0.1,-0.1;
-	assert_le((x-beta).norm(), 1e-12);
+  	g << -0.2,-0.2,-0.2,  -0.1,-0.1,-0.1;
+  	P.PHI(g, phi);
+  	x << -0.2,0,0,   0,0,-0.1;
+  	assert_eq(phi,x);
+  	phi.tail(3).setZero();
+  	P.BETA(g,beta,phi);
+  	x << 0.0f,-0.2,-0.2,  -0.1,-0.1,-0.1;
+  	assert_le((x-beta).norm(), 1e-12);
   }
 
+}
+
+void test_OnePlaneProjector(){
+  
+  cout << "test projector for xi*nj >= bj\n";
+
+  // initialize
+  VectorXd x(3);
+  vector<Vector4d,aligned_allocator<Vector4d> > planes;
+  {
+	Vector4d p;
+	p << 1,0,0,-1;
+	p.head(3) /= p.head(3).norm();
+	planes.push_back(p);
+  }
+
+  PlaneProjector<double> P(planes,x.size());
+  assert_eq(P.getFace().size(),x.size());
+  for (int i = 0; i < P.getFace().size(); ++i)
+    assert_eq(P.getFace()[i],0);
+
+  // test step limit
+  {
+	x << 2,0,0;
+	VectorXd d(x.size());
+	d << 1,0.0,0.0;
+	const double t = P.stepLimit(x,d);
+	assert_eq(t,1.0);
+  }
 }
 
 #endif /* _TEST_PROJECTION_H_ */
