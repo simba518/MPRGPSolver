@@ -145,8 +145,12 @@ void test_PlaneProjector(){
 	x << 0, -0.2,   0,   0, -0.1, -0.1;
 	assert_eq(phi,x);
 
+	// y[0] is on 1 planes,
+	// y[1] is free.
+	y << -0.1,0.1,0.1,  0.1,0.1,0.2;
+	P.DECIDE_FACE(y);
 	P.BETA(g,beta,phi);
-	x << 0,0,0,   0,0,0;
+	x << -0.2,0,0,   0,0,0;
 	assert_eq(x,beta);
 
 	// y[0] is on 3 planes,
@@ -169,12 +173,26 @@ void test_PlaneProjector(){
 	x << 0,0,0,   0,0,0;
 	assert_eq(x,beta);
 	
-	// test phi[1] == 0
-	g << 0.2,0.2,0.2,  -0.1,-0.1,-0.1;
+	// test phi == 0
+	g << -0.2,-0.2,-0.2,  -0.1,-0.1,-0.1;
+	phi.setZero();
+	P.BETA(g,beta,phi);
+	x << -0.2,-0.2,-0.2,  0,0,0;
+	assert_eq(x,beta);
+
+	// y[0] is on 2 planes,
+	// y[1] is on 2 planes, but phi[1] = 0.
+	y << 0.1,-0.1,-0.1,  -0.1,-0.1,0.2;
+	P.DECIDE_FACE(y);
+
+	g << -0.2,-0.2,-0.2,  -0.1,-0.1,-0.1;
+	P.PHI(g, phi);
+	x << -0.2,0,0,   0,0,-0.1;
+	assert_eq(phi,x);
 	phi.tail(3).setZero();
 	P.BETA(g,beta,phi);
-	x << 0,0,0,   -0.1,-0.1,-0.1;
-	assert_eq(x,beta);
+	x << 0.0f,-0.2,-0.2,  -0.1,-0.1,-0.1;
+	assert_le((x-beta).norm(), 1e-12);
   }
 
 }

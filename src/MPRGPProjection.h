@@ -323,11 +323,18 @@ namespace MATH{
 	  Vec3X temp;
 	  temp.setZero();
 	  for (int i = 0; i < in.size(); i += 3){
+
 		assert_eq(_face[i], _face_indices[i/3].size());
-		if (1 <= _face[i]){
+		if (1 == _face[i]){
+		  const Vec3X n = _planes[_face_indices[i/3][0]].block(0,0,3,1);
+		  const T t = in.block(i,0,3,1).dot(n);
+		  if (t < 0)
+			out.block(i,0,3,1) = t*n;
+		}else if (_face[i]>=2){
 		  const bool found = findClosestPoint( _planes, _face_indices[i/3], in.block(i,0,3,1), phi.block(i,0,3,1), temp );
 		  assert(found);
 		  out.block(i,0,3,1) = temp;
+		  
 		}
 	  }
 	}

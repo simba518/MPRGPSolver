@@ -93,7 +93,7 @@ inline bool findClosestPoint(const std::vector<Vec4d>& p,const Vec3d& v0,Vec3d& 
 	{
 		//step 1: solve the following equation:
 		// I*v + A^T*\lambda = v0
-		// A*x + d = 0
+		// A*v + d = 0
 		//where we use schur complementary method
 		for(char d=0;d<nrA;d++)
 			lambda[d]=dist(p[aSet[d]],v0);
@@ -146,6 +146,7 @@ inline bool findClosestPoint(const std::vector<Vec4d>& p,const Vec3d& v0,Vec3d& 
 		}
 		else
 		{
+		    assert_le(nrA,2);
 			// ASSERT_MSG(nrA <= 2,"My God, that's impossible!")
 			//step 3: move until we are blocked
 			minA=-1;
@@ -195,14 +196,37 @@ inline bool findClosestPoint(const std::vector<Vec4d>& p,const Vec3d& v0,Vec3d& 
 
 
 // The active set method for helping to compute BETA, which solves:
-// \beta = min 1/2*||beta+g||_2^2 
+// 
+// \beta = min 1/2*||(-beta)-(-g)||_2^2 
 //               s.t. 
-//    beta*n[j] >=0 for j in f, 
+//    (-beta)*n[j] >=0 for j in f, 
 //               and 
 //           beta*phi=0.
+// 
+// The special case where phi=0 should be taken carefully.
 inline bool findClosestPoint(const std::vector<Vec4d>& p,const vector<int>&f,const Vec3d&g,const Vec3d& phi,Vec3d& beta,double eps=1E-18){
 
-  
+  assert_ge(f.size(),2);
 
-  return true;
+  Vec3i aSet;
+  aSet.setConstant(-1);
+  Vec3d v0 = -g;
+  std::vector<Vec4d> planes;
+  planes.reserve(f.size());
+  for (int i = 0; i < f.size(); ++i){
+	assert_in(f[i],0,p.size()-1);
+    planes.push_back(p[f[i]]);
+	planes[i][3]=0; 
+  }
+
+  bool succ = false;
+  const double pnorm = phi.norm();
+  if ( 2 == f.size() && pnorm >= ScalarUtil<double>::scalar_eps ){
+	// project v0 on to the plane defined by phi.
+	v0 -= v0.dot(phi)*phi*(1.0f/(pnorm*pnorm));
+  }
+
+  succ = findClosestPoint(planes,v0,beta,aSet,eps);
+  beta = -beta;
+  return succ;
 }

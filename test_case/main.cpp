@@ -11,12 +11,13 @@ double ScalarUtil<double>::scalar_eps=1E-9;
 int main(int argc, char *argv[]){
 
   test_LowerBoundProjector();
+  test_PlaneProjector();
+
   test1DSolverLB();
   test2DSolverLB();
   test1DSolverBB();
   test2DSolverBB();
-
-  test_PlaneProjector();
+  testMPRGPPlaneSolver3D();
 
   return 0;
 }
