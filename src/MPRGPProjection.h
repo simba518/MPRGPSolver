@@ -6,6 +6,7 @@
 #include <eigen3/Eigen/Sparse>
 #include <eigen3/Eigen/Dense>
 #include <MPRGPUtility.h>
+#include <ActiveSetQP3D.h>
 using namespace Eigen;
 using namespace std;
 
@@ -281,10 +282,24 @@ namespace MATH{
 	  
 	  Vec3X v;
 	  Vector3i aSet;
+	  const bool found = findFeasible(_planes,v);
+	  if(!found){
+		cout << "error: can not found a feasible point.\n";
+		cout << "return: "<< v.transpose() << endl;
+	  }
+
 	  for (int i = 0; i < in.size(); i += 3){
 	  	aSet.setConstant(-1);
 	  	const bool found = findClosestPoint( _planes, in.block(i,0,3,1), v, aSet);
-	  	assert(found);
+	  	if(!found){
+		  cout << "error: the closest point for this point is not found: " <<in.block(i,0,3,1).transpose()<<endl;
+		  cout << "return: "<< v.transpose() << endl;
+		  cout << "i = " << i << endl;
+
+		  findFeasible(_planes,v);
+		  aSet.setConstant(-1);
+		  findClosestPoint( _planes, in.block(i,0,3,1), v, aSet);
+		}
 	  	out.block(i,0,3,1) = v;
 	  }
 	}
@@ -326,7 +341,6 @@ namespace MATH{
 	  out.setZero();
 
 	  Vec3X temp;
-	  temp.setZero();
 	  for (int i = 0; i < in.size(); i += 3){
 
 	  	assert_eq(_face[i], _face_indices[i/3].size());
@@ -378,7 +392,7 @@ namespace MATH{
 
 	  assert_in(plane_index, 0 ,_planes.size()-1);
 	  const Vec3X n = _planes[plane_index].block(0,0,3,1);
-	  assert_eq(n.norm(),1.0f);
+	  assert_in(n.norm(),1.0f-ScalarUtil<T>::scalar_eps,1.0f+ScalarUtil<T>::scalar_eps);
 	  out = in-in.dot(n)*n;
 	}
 	
