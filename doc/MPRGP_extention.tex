@@ -34,10 +34,18 @@ For each $x_i,d_i\in R^3$, we compute
       \alpha_i:x_i+\alpha_id \in P_j, & d_i\cdot n_j <= 0
     \end{array} \right.
 \end{equation}
-
 for each plane $P_j$ with norm of $n_j$. Finally, we compute
 \begin{equation} 
   \alpha = \min \alpha_i
+\end{equation}
+
+Suppose the plane is defined as $n\cdot y + p = 0$, then we need to solve 
+\begin{equation}
+  n\cdot(x-\alpha d)+p = 0
+\end{equation}
+for $\alpha$, i.e
+\begin{equation}
+  \alpha = \frac{n\cdot x+p}{n\cdot d}
 \end{equation}
 
 \section{Project $P_{\Omega_B}$}

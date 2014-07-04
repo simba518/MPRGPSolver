@@ -62,7 +62,7 @@ namespace MATH{
 	  MASK_FACE(in,out,_face);
 	}
 
-	void BETA(const Vec& in,Vec& out){
+	void BETA(const Vec& in,Vec& out, const Vec&phi){
 
 	  assert_eq(in.size(), _face.size());
 	  out.resize(in.size());
@@ -87,7 +87,7 @@ namespace MATH{
 			_face[i]=-1;
 	}
 
-	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi){
+	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi,const Vec&beta, const Vec&g){
 
 	  assert_eq(x.size(), _L.size());
 	  assert_eq(x.size(), phi.size());
@@ -159,7 +159,7 @@ namespace MATH{
 	void PHI(const Vec& in,Vec& out){
 	  MASK_FACE(in,out,_face);
 	}
-	void BETA(const Vec& in,Vec& out){
+	void BETA(const Vec& in,Vec& out, const Vec&phi){
 	  
 	  assert_eq(in.size(), _face.size());
 	  out.resize(in.size());
@@ -188,7 +188,7 @@ namespace MATH{
 		  else if(abs(x[i]-H[i]) < ScalarUtil<T>::scalar_eps)
 			_face[i]=1;
 	}
-	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi){
+	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi,const Vec&beta, const Vec&g){
 
 	  assert_eq(x.size(), _L.size());
 	  assert_eq(x.size(), _H.size());
@@ -214,6 +214,172 @@ namespace MATH{
 	const Vec &_H;
 	vector<char> _face;
   };
+
+  // support plane constraints
+  template <typename T>
+  class PlaneProjector{
+
+	typedef Eigen::Matrix<T,-1,1> Vec;
+	typedef Eigen::Matrix<T,4,1> Vec4X;
+	typedef Eigen::Matrix<T,3,1> Vec3X;
+	
+  public:
+    PlaneProjector(const vector<Vec4X> &planes, const size_t x_size):_planes(planes){
+
+	  assert_ge(x_size,0);
+	  assert_eq(x_size%3,0);
+
+	  _face.resize(x_size);
+	  _face.assign(x_size,0);
+
+	  _face_indices.resize(x_size/3);
+	  for (int i = 0; i < _face_indices.size(); ++i)
+		_face_indices[i].reserve(3);
+	}
+
+	const vector<char> &getFace()const{return _face;}
+
+	// return the largest step in direction -D.
+	T stepLimit(const Vec& X,const Vec& D) const{
+
+	  const size_t num_points = _face_indices.size();
+	  assert_eq(D.size(),num_points*3);
+	  assert_eq(D.size(), X.size());
+
+	  T alpha = ScalarUtil<T>::scalar_max;
+	  for (size_t i = 0; i < num_points; ++i){
+
+		const Vec3X di = D.block(i*3,0,3,1);
+		const Vec3X xi = X.block(i*3,0,3,1);
+		for (size_t j = 0; j < _planes.size(); ++j){
+
+		  const Vec3X nj = _planes[j].block(0,0,3,1);
+		  assert_in(nj.norm(),1.0-ScalarUtil<T>::scalar_eps,1.0+ScalarUtil<T>::scalar_eps);
+		  const T nd = nj.dot(di);
+		  if ( fabs(nd) > ScalarUtil<T>::scalar_eps ){
+			const T alpha_ij = (nj.dot(xi)+_planes[j][3])/nd;
+			if (alpha_ij > ScalarUtil<T>::scalar_eps)
+			  alpha = std::min<T>(alpha, alpha_ij);
+		  }
+		}
+	  }
+	  assert_ge(alpha, 0.0f);
+	  return alpha;
+	}
+
+	void project(const Vec& in,Vec& out) const{
+
+	  const size_t num_points = _face_indices.size();
+	  assert_eq(in.size(),num_points*3);
+	  out.resize( in.size() );
+	  
+	  Vec3X v;
+	  Vector3i aSet;
+	  for (int i = 0; i < in.size(); i += 3){
+		aSet.setConstant(-1);
+		const bool found = findClosestPoint( _planes, in.block(i,0,3,1), v, aSet );
+		assert(found);
+		out.block(i,0,3,1) = v;
+	  }
+	}
+
+	void PHI(const Vec& in,Vec& out){
+
+	  const size_t num_points = _face_indices.size();
+	  assert_eq(in.size(),num_points*3);
+	  out = in;
+	  Vec3X temp;
+	  temp.setZero();
+	  for (int i = 0; i < in.size(); i += 3){
+
+		assert_eq(_face[i], _face_indices[i/3].size());
+		if (3 <= _face[i]){
+
+		  out.block(i,0,3,1).setZero();
+
+		}else if (2 == _face[i]){
+
+		  projectToPlane(_face_indices[i/3][0], in.block(i,0,3,1), temp);
+		  out.block(i,0,3,1) = temp;
+		  projectToPlane(_face_indices[i/3][1], out.block(i,0,3,1), temp);
+		  out.block(i,0,3,1) = temp;
+		  
+		}else if (1 == _face[i]){
+
+		  projectToPlane(_face_indices[i/3][0], in.block(i,0,3,1), temp);
+		  out.block(i,0,3,1) = temp;
+
+		}
+	  }
+	}
+
+	void BETA(const Vec& in, Vec& out, const Vec&phi){
+	  
+	  const size_t num_points = _face_indices.size();
+	  assert_eq(in.size(),num_points*3);
+	  out.resize(in.size());
+	  out.setZero();
+
+	  Vec3X temp;
+	  temp.setZero();
+	  for (int i = 0; i < in.size(); i += 3){
+		assert_eq(_face[i], _face_indices[i/3].size());
+		if (1 <= _face[i]){
+		  const bool found = findClosestPoint( _planes, _face_indices[i/3], in.block(i,0,3,1), phi.block(i,0,3,1), temp );
+		  assert(found);
+		  out.block(i,0,3,1) = temp;
+		}
+	  }
+	}
+
+	void DECIDE_FACE(const Vec& x){
+
+	  const size_t num_points = _face_indices.size();
+	  assert_eq(x.size(),num_points*3);
+	  
+	  Vec3X v;
+	  Vector3i aSet;
+	  for (int i = 0; i < num_points; i++ ){
+		aSet.setConstant(-1);
+		const bool found = findClosestPoint( _planes, x.block(i*3,0,3,1), v, aSet );
+		assert(found);
+		_face_indices[i].clear();
+		for (int j = 0; j < aSet.size(); ++j){
+		  if (aSet[j] >= 0)
+			_face_indices[i].push_back(aSet[j]);
+		}
+		_face[i*3] = _face_indices[i].size();
+		_face[i*3+1] = _face[i*3];
+		_face[i*3+2] = _face[i*3];
+	  }
+	}
+
+	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi,const Vec&beta, const Vec&g){
+
+	  assert_gt(alphaBar, ScalarUtil<T>::scalar_eps);
+	  assert_eq(x.size() % 3,0);
+	  assert_eq(x.size(), g.size());
+	  const Vec x_alpha_g = x-alphaBar*g;
+	  Vec px;
+	  project(x_alpha_g, px);
+	  return ((x-px)*(1.0f/alphaBar)-beta).dot(phi);
+	}
+
+  protected:
+	void projectToPlane(const int plane_index, const Vec3X &in, Vec3X &out){
+
+	  assert_in(plane_index, 0 ,_planes.size()-1);
+	  const Vec3X n = _planes[plane_index].block(0,0,3,1);
+	  assert_eq(n.norm(),1.0f);
+	  out = in-in.dot(n)*n;
+	}
+	
+  private:
+	const vector<Vec4X> &_planes;
+	vector<char> _face;
+	vector<vector<int> > _face_indices;
+  };
+  
 
 }//end of namespace
 

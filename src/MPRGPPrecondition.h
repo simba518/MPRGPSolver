@@ -55,7 +55,7 @@ namespace MATH{
 	const MAT &_matrix;
 	const vector<char>& _face;
   };
-  
+
 }//end of namespace
 
 

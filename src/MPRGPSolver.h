@@ -53,7 +53,7 @@ namespace MATH{
 
 		//test termination
 		_projector.PHI(_g,_phi);
-		_projector.BETA(_g,_beta);
+		_projector.BETA(_g,_beta,_phi);
 		assert_eq(_phi.size(), _beta.size());
 		_gp = _phi+_beta;
 		_residualOut=_gp.norm();
@@ -65,7 +65,7 @@ namespace MATH{
 
 		//test proportional x: beta*beta <= gamma*gamma*phi*phiTilde
 		const T beta_norm = _beta.norm();
-		if(beta_norm*beta_norm <= _Gamma*_Gamma*_projector.PHITPHI(result,_alphaBar,_phi)){
+		if(beta_norm*beta_norm <= _Gamma*_Gamma*_projector.PHITPHI(result,_alphaBar,_phi,_beta, _g)){
 
 		  //prepare conjugate gradient
 		  _A.multiply(_p,AP);
@@ -241,6 +241,26 @@ namespace MATH{
 	  BoxBoundProjector<T> projector(L, U);
 	  DiagonalInFacePreconSolver<T,MAT> precond(A, projector.getFace());
 	  MPRGP<T, MAT, BoxBoundProjector<T>, DiagonalInFacePreconSolver<T,MAT> > solver(A, B, precond, projector, max_it, tol);
+	  const int rlst_code = solver.solve(x);
+	  return rlst_code;
+	}
+  };
+
+  template<typename T=double>
+  class MPRGPPlane{
+
+	typedef Eigen::Matrix<T,-1,1> Vec;
+	typedef Eigen::Matrix<T,4,1> Vec4X;
+	
+  public:
+	template <typename MAT>
+	static int solve(const MAT &A,const Vec &B, const vector<Vec4X> &planes, Vec &x, const T tol=1e-3, const int max_it = 1000){
+
+	  assert_eq(A.rows(),B.size());
+	  assert_eq(A.rows(),x.size());
+	  PlaneProjector<T> projector(planes,x.size());
+	  DiagonalInFacePreconSolver<T,MAT> precond(A, projector.getFace());
+	  MPRGP<T, MAT, PlaneProjector<T>, DiagonalInFacePreconSolver<T,MAT> > solver(A, B, precond, projector, max_it, tol);
 	  const int rlst_code = solver.solve(x);
 	  return rlst_code;
 	}

@@ -15,5 +15,8 @@ int main(int argc, char *argv[]){
   test2DSolverLB();
   test1DSolverBB();
   test2DSolverBB();
+
+  test_PlaneProjector();
+
   return 0;
 }
