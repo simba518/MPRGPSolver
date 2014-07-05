@@ -291,15 +291,7 @@ namespace MATH{
 	  for (int i = 0; i < in.size(); i += 3){
 	  	aSet.setConstant(-1);
 	  	const bool found = findClosestPoint( _planes, in.block(i,0,3,1), v, aSet);
-	  	if(!found){
-		  cout << "error: the closest point for this point is not found: " <<in.block(i,0,3,1).transpose()<<endl;
-		  cout << "return: "<< v.transpose() << endl;
-		  cout << "i = " << i << endl;
-
-		  findFeasible(_planes,v);
-		  aSet.setConstant(-1);
-		  findClosestPoint( _planes, in.block(i,0,3,1), v, aSet);
-		}
+		// assert(found);
 	  	out.block(i,0,3,1) = v;
 	  }
 	}
@@ -351,7 +343,7 @@ namespace MATH{
 	  		out.block(i,0,3,1) = t*n;
 	  	}else if (_face[i]>=2){
 	  	  const bool found = findClosestPoint( _planes, _face_indices[i/3], in.block(i,0,3,1), phi.block(i,0,3,1), temp );
-	  	  assert(found);
+	  	  // assert(found);
 	  	  out.block(i,0,3,1) = temp;
 	  	}
 	  }

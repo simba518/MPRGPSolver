@@ -4,7 +4,9 @@
 #include <vector>
 #include <eigen3/Eigen/Dense>
 #include <MPRGPUtility.h>
+#include <iomanip>
 using namespace Eigen;
+using namespace std;
 
 namespace MATH{
 
@@ -81,6 +83,7 @@ namespace MATH{
 	for(char d=0;d<3;d++)
 	  if(aSet[d] != -1)
 		{
+		  assert_in(aSet[d],0,aTag.size()-1);
 		  aTag[aSet[d]]=true;
 		  aSet[nrA++]=aSet[d];
 		}
@@ -93,7 +96,8 @@ namespace MATH{
 	Mat3d A,M3;
 	Vec3d dir,lambda;
 
-	while(true)
+	const int max_it = 100;
+	for (int it = 0; it < max_it; ++it)
 	  {
 		//step 1: solve the following equation:
 		// I*v + A^T*\lambda = v0
@@ -190,9 +194,16 @@ namespace MATH{
 			  {
 				//already in active set, so this is rounding error
 				for(char d=0;d<nrA;d++)
+
 				  if(minA == aSet[d]){
-					for (int k = nrA; k < 3; ++k)
-					  aSet[k] = -1;
+					cout << "error: " << "rounding error\n";
+					cout<< setprecision(10) << "v0: " << v0.transpose() << endl;
+					cout<< setprecision(10) << "v: " << v.transpose() << endl;
+					cout<< "s: " << aSet.transpose() << endl;
+					const Vec3d n = p[minA].head(3);
+					const double b = p[minA][3];
+					cout << "dv0: "<< n.dot(v0)+b << endl;
+					cout << "dv: "<< n.dot(v)+b << endl;
 					return false;
 				  }
 				//expand active set
@@ -201,8 +212,11 @@ namespace MATH{
 			  }
 		  }
 	  }
+
 	for (int k = nrA; k < 3; ++k)
 	  aSet[k] = -1;
+
+	cout << "error: not convergent for "<<max_it<<" iterations in finding closest point."<<endl;
 	return false;
   }
 
