@@ -76,6 +76,20 @@ namespace MATH{
   //findFeasible(p,v)
   inline bool findClosestPoint(const VVec4d& p,const Vec3d& v0,Vec3d& v,Vec3i& aSet,double eps=1E-18)
   {
+	{// if there is only one plane...
+	  if (1 == p.size()){
+		aSet.setConstant(-1);
+		const double alpha = dist(p[0],v0);
+		if (alpha >= eps){
+		  v = v0;
+		}else {
+		  aSet[0] = 0;
+		  v = v0-alpha*p[0].head(3);
+		}
+		return true;
+	  }
+	}
+
 	//rearrange
 	char nrA=0;
 	int nrP=(int)p.size();
@@ -96,7 +110,7 @@ namespace MATH{
 	Mat3d A,M3;
 	Vec3d dir,lambda;
 
-	const int max_it = 100;
+	const int max_it = 1000;
 	for (int it = 0; it < max_it; ++it)
 	  {
 		//step 1: solve the following equation:
@@ -242,6 +256,7 @@ namespace MATH{
 	for (int i = 0; i < f.size(); ++i){
 	  assert_in(f[i],0,p.size()-1);
 	  planes.push_back(p[f[i]]);
+	  planes[i].head(3) *= -1.0f;
 	  planes[i][3]=0; 
 	}
 

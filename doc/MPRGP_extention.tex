@@ -69,9 +69,13 @@ where $p_N$ is the number of planes that $x_i$ belong to.
 \section{Compute $\beta$}
 Given the gradient $g_i(x_i)\in R^3$, then
 \begin{equation} 
-  \beta_i = \min_{\beta} \frac{1}{2}\|\beta-g_i\|_2^2 \mbox{, s.t. } \beta \cdot n_j \ge 0 \mbox{ for } j\in P_i \mbox{, and } \beta \cdot \phi_i=0.
+  \beta_i = \min_{\beta} \frac{1}{2}\|(-g_i)-(-\beta)\|_2^2 \mbox{, s.t. } (-\beta) \cdot n_j \ge 0 \mbox{ for } j\in P_i \mbox{, and } \beta \cdot \phi_i=0.
 \end{equation}
-Here $P_i$ is the planes that contains $x_i$. If $|P_i|=0$, then $\beta_i=0$.
+Let $y = -\beta$, then
+\begin{equation} 
+  y = \min_{y} \frac{1}{2}\|y-(-g_i)\|_2^2 \mbox{, s.t. } y \cdot n_j \ge 0 \mbox{ for } j\in P_i \mbox{, and } y \cdot \phi_i=0.
+\end{equation}
+and $\beta = -y$. Here $P_i$ is the planes that contains $x_i$. If $|P_i|=0$, then $\beta_i=0$.
 
 \section{Decide Face}
 

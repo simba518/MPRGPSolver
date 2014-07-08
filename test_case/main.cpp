@@ -1,5 +1,5 @@
-// #include "test_solver.h"
-// #include "test_projection.h"
+#include "test_solver.h"
+#include "test_projection.h"
 #include "test_ActiveSet3D.h"
 using namespace MATH;
 
@@ -12,15 +12,14 @@ double ScalarUtil<double>::scalar_eps=1E-9;
 int main(int argc, char *argv[]){
 
   test_findClosestPoint();
-
-  // test_LowerBoundProjector();
+  test_LowerBoundProjector();
   // test_PlaneProjector();
-  // test_OnePlaneProjector();
+  test_OnePlaneProjector();
 
-  // test1DSolverLB();
-  // test2DSolverLB();
-  // test1DSolverBB();
-  // test2DSolverBB();
+  test1DSolverLB();
+  test2DSolverLB();
+  test1DSolverBB();
+  test2DSolverBB();
   // testMPRGPPlaneSolver3D();
 
   return 0;
