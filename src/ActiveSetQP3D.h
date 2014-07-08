@@ -246,11 +246,11 @@ namespace MATH{
   // The special case where phi=0 should be taken carefully.
   inline bool findClosestPoint(const VVec4d& p,const vector<int>&f,const Vec3d&g,const Vec3d& phi,Vec3d& beta,double eps=1E-18){
 
+	bool succ = false;
 	assert_ge(f.size(),2);
 
 	Vec3i aSet;
 	aSet.setConstant(-1);
-	Vec3d v0 = -g;
 	vector<Vector4d,aligned_allocator<Vector4d> > planes;
 	planes.reserve(f.size());
 	for (int i = 0; i < f.size(); ++i){
@@ -260,7 +260,7 @@ namespace MATH{
 	  planes[i][3]=0; 
 	}
 
-	bool succ = false;
+	Vec3d v0 = g;
 	const double pnorm = phi.norm();
 	if ( 2 == f.size() && pnorm >= ScalarUtil<double>::scalar_eps ){
 	  // project v0 on to the plane defined by phi.
@@ -272,9 +272,8 @@ namespace MATH{
 	  cout << "error: can not found a feasible point. "<<endl;
 	  cout << "return: "<< beta.transpose() << endl;
 	}
-
+	
 	succ = findClosestPoint(planes,v0,beta,aSet,eps);
-	beta = -beta;
 	return succ;
   }
 

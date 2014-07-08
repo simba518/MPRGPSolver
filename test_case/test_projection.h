@@ -77,9 +77,9 @@ void test_PlaneProjector(){
 	p.head(3) /= p.head(3).norm();
 	planes.push_back(p);
 
-	// p << -1,-1,-1,-10;
-	// p.head(3) /= p.head(3).norm();
-	// planes.push_back(p);
+	p << -1,-1,-1,10;
+	p.head(3) /= p.head(3).norm();
+	planes.push_back(p);
   }
 
   PlaneProjector<double> P(planes,x.size());
@@ -101,16 +101,25 @@ void test_PlaneProjector(){
 
   // test project
   {
+	// feasible points
   	VectorXd px;
 	x << 0.1,0.1,0.1,
 	  0.2,0.2,0.2;
   	P.project(x, px);
   	assert_le((px-x).norm(),1e-12);
 
+	// infeasible points
   	x << -0.1,-0.1,-0.1,
   	  -0.2,0.2,0.2;
   	P.project(x, px);
   	y << 0,0,0,  0,0.2,0.2;
+  	assert_le((px-y).norm(),1e-12);
+
+	// infeasible points, project the line of two planes.
+  	x << -0.1,-0.1,0.1,
+  	  0.2,-0.2,-0.2;
+  	P.project(x, px);
+  	y << 0,0,0.1,  0.2,0,0;
   	assert_le((px-y).norm(),1e-12);
   }
 
@@ -142,42 +151,37 @@ void test_PlaneProjector(){
   // test PHI, BETA
   {
   	VectorXd g(6),phi(6),beta(6);
-  	g << -0.2,-0.2,-0.2,  -0.1,-0.1,-0.1;
-  	P.PHI(g, phi);
-  	x << 0, -0.2,   0,   0, -0.1, -0.1;
-  	assert_le((x-phi).norm(), 1e-12);
 
-  	// y[0] is on 1 planes,
+  	// y[0] is on 1 plane,
   	// y[1] is free.
   	y << -0.0,0.1,0.1,  0.1,0.1,0.2;
+	g << -0.2,-0.2,-0.2,  -0.1,-0.1,-0.1;
   	P.DECIDE_FACE(y);
+  	P.PHI(g, phi);
   	P.BETA(g,beta,phi);
+
+  	x << 0,-0.2,-0.2,  -0.1,-0.1,-0.1;
+  	assert_le((x-phi).norm(), 1e-12);
   	x << -0.2,0,0,   0,0,0;
   	assert_le((x-beta).norm(), 1e-12);
 
   	// y[0] is on 3 planes,
   	// y[1] is free.
   	y << -0.0,-0.0,-0.0,  0.1,0.1,0.2;
+	g << -0.2,0.2,0.2,  -0.1,-0.1,-0.1;
   	P.DECIDE_FACE(y);
-
   	P.PHI(g, phi);
+  	P.BETA(g,beta,phi);
+
   	x << 0,0,0, -0.1,-0.1, -0.1;
   	assert_le((x-phi).norm(), 1e-12);
-
-  	// g[0] point out of feasible regsion.
-  	g << -0.2,-0.2,-0.2,  -0.1,-0.1,-0.1;
-  	P.BETA(g,beta,phi);
-  	x << -0.2,-0.2,-0.2,   0,0,0;
+  	x << -0.2,0,0,   0,0,0;
   	assert_le((x-beta).norm(), 1e-12);
 
-  	// g[0] point into feasible regsion.
-  	g << 0.2,0.2,0.2,  -0.1,-0.1,-0.1;
-  	P.BETA(g,beta,phi);
-  	x << 0,0,0,   0,0,0;
-  	assert_le((x-beta).norm(), 1e-12);
-	
   	// test phi == 0
+	y << -0.0,-0.0,1.0,  0.1,0.1,0.2;
   	g << -0.2,-0.2,-0.2,  -0.1,-0.1,-0.1;
+  	P.DECIDE_FACE(y);
   	phi.setZero();
   	P.BETA(g,beta,phi);
   	x << -0.2,-0.2,-0.2,  0,0,0;
@@ -186,13 +190,14 @@ void test_PlaneProjector(){
   	// y[0] is on 2 planes,
   	// y[1] is on 2 planes, but phi[1] = 0.
   	y << 0.1,-0.0,-0.0,  -0.0,-0.0,0.2;
+  	g << -0.2,-0.2,-0.2,  -0.1,-0.1,-0.1;
   	P.DECIDE_FACE(y);
 
-  	g << -0.2,-0.2,-0.2,  -0.1,-0.1,-0.1;
   	P.PHI(g, phi);
   	x << -0.2,0,0,   0,0,-0.1;
   	assert_le((x-phi).norm(), 1e-12);
   	phi.tail(3).setZero();
+
   	P.BETA(g,beta,phi);
   	x << 0.0f,-0.2,-0.2,  -0.1,-0.1,-0.1;
   	assert_le((x-beta).norm(), 1e-12);
@@ -232,24 +237,28 @@ void test_OnePlaneProjector(){
   {
 	x << 0,-1.0,0;
 	P.DECIDE_FACE(x);
-	VectorXd g(3),phi(3),beta(3);
+	VectorXd g(3),phi(3),beta(3),c(3);
 	g << 0,-1,0;
 	P.PHI(g, phi);
 	P.BETA(g,beta,phi);
-	cout << phi.transpose() << endl;
-	cout << beta.transpose() << endl;
+	c << 0.5,-0.5,0;
+	assert_le( (phi-c).norm(), 1e-12  );
+	c << -0.5,-0.5,0;
+	assert_le( (beta-c).norm(), 1e-12  );
   }
 
   // test PHI, BETA, feasible point.
   {
 	x << 0,-0.9,0;
 	P.DECIDE_FACE(x);
-	VectorXd g(3),phi(3),beta(3);
+	VectorXd g(3),phi(3),beta(3),c(3);
 	g << 0,-1,0;
 	P.PHI(g, phi);
 	P.BETA(g,beta,phi);
-	cout << phi.transpose() << endl;
-	cout << beta.transpose() << endl;
+	c << 0,-1,0;
+	assert_le( (phi-c).norm(), 1e-12  );
+	c << 0,0,0;
+	assert_le( (beta-c).norm(), 1e-12  );
   }
 
   // test projection
@@ -257,7 +266,9 @@ void test_OnePlaneProjector(){
 	x << 0,-2.0,0;
 	VectorXd y(3);
 	P.project(x,y);
-	cout << y.transpose() << endl;
+	VectorXd c_y(3);
+	c_y << 0.5, -1.5, 0.0f;
+	assert_le((y-c_y).norm(),1e-12);
   }
 }
 
