@@ -20,7 +20,8 @@ int main(int argc, char *argv[]){
   test2DSolverLB();
   test1DSolverBB();
   test2DSolverBB();
-  // testMPRGPPlaneSolver3D();
+  testMPRGPPlaneSolver3D();
+  testMPRGPPlaneSolver3D_OnePlane();
 
   return 0;
 }

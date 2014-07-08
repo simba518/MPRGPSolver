@@ -26,8 +26,23 @@ namespace MATH{
 
 	size_t nrP=(size_t)p.size();
 	for(size_t i=0;i<nrP;i++)
-	  if(dist(p[i],v) < 0.0f)
+	  if(dist(p[i],v) < -ScalarUtil<double>::scalar_eps){
+		cout << "dist(p,v): " << dist(p[i],v) << endl;
 		return false;
+	  }
+	return true;
+  }
+
+  inline bool isFeasible(const VVec4d& p,const VectorXd& v){
+
+	assert_eq(v.size()%3,0);
+	for (int i = 0; i < v.size(); i+=3){
+	  const Vec3d vi = v.segment(i,3);
+	  if (!isFeasible(p,vi)){
+		cout << "this point is infeasible: " << vi.transpose() << endl;
+		return false;
+	  }
+	}
 	return true;
   }
 
@@ -86,6 +101,7 @@ namespace MATH{
 		  aSet[0] = 0;
 		  v = v0-alpha*p[0].head(3);
 		}
+		assert(isFeasible(p,v));
 		return true;
 	  }
 	}

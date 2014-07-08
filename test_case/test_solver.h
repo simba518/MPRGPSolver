@@ -153,4 +153,31 @@ void testMPRGPPlaneSolver3D(){
   assert_eq(x[2],0);
 }
 
+void testMPRGPPlaneSolver3D_OnePlane(){
+  
+  cout << "testMPRGPPlaneSolver3D_OnePlane " << endl;
+
+  MatrixXd M(3,3);
+  M << 0.5f,0,0,
+	0,0.5f,0,
+	0,0,0.5f;
+  const SparseMatrix<double> A = createFromDense(M);
+  VectorXd b(3);
+  VectorXd x(3);
+  b << -1,-1,0;
+  x << 0,0,0;
+
+  vector<Vector4d,aligned_allocator<Vector4d> > planes;
+  Vector4d p;
+  p << 1,1,0,sqrt(2)/2;
+  p.head(3) = p.head(3)/p.head(3).norm();
+  planes.push_back(p);
+
+  const int rlst_code = MPRGPPlane<double>::solve(FixedSparseMatrix<double>(A),b,planes,x);
+  VectorXd correct_x(3);
+  correct_x << -0.5,-0.5,0.0;
+  assert_le((x-correct_x).norm(),1e-12);
+  assert_eq(rlst_code,0);
+}
+
 #endif /* _TEST_SOLVER_H_ */

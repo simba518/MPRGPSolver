@@ -44,17 +44,22 @@ namespace MATH{
 	  _g -= _B;
 	  _projector.DECIDE_FACE(result);
 
+	  assert_eq(_g,_g);
 	  _projector.PHI(_g, _phi);
 	  _precond.solve(_phi,_z);
 	  // _precond.solve(_g,_z);
 	  _p = _z;
+	  assert_eq(_p,_p);
 	  int result_code = -1;
 
 	  //MPRGP iteration
 	  size_t iteration=0;
 	  for(; iteration<_maxIterations; iteration++){
 
+		cout << "MPRGP:iter = " << iteration << endl;
+
 		//test termination
+		assert_eq(_g,_g);
 		_projector.PHI(_g,_phi);
 		_projector.BETA(_g,_beta,_phi);
 		assert_eq(_phi.size(), _beta.size());
@@ -68,32 +73,45 @@ namespace MATH{
 
 		//test proportional x: beta*beta <= gamma*gamma*phi*phiTilde
 		const T beta_norm = _beta.norm();
+		assert_eq(beta_norm, beta_norm);
+		assert_eq(_g,_g);
 		if(beta_norm*beta_norm <= _Gamma*_Gamma*_projector.PHITPHI(result,_alphaBar,_phi,_beta, _g)){
 
 		  //prepare conjugate gradient
 		  _A.multiply(_p,AP);
-		  alphaCG = (_z.dot(_g)) / (_p.dot(AP));
+		  const T pd = _p.dot(AP);
+		  assert_eq(pd,pd);
+		  assert(pd!=0);
+		  alphaCG = (_z.dot(_g)) / pd;
+		  assert_eq(alphaCG, alphaCG);
 		  y = result-alphaCG*_p;
 		  alphaF = _projector.stepLimit(result,_p);
+		  assert_eq(alphaF, alphaF);
 		  
 		  if(alphaCG <= alphaF){
 
 			//conjugate gradient step
+			assert_ge(alphaCG,0.0f);
+			cout << "cg\n";
 			result = y;
 			_g -= alphaCG*AP;
 
+			assert_eq(_g,_g);
 			_projector.PHI(_g, _phi);
 			_precond.solve(_phi,_z);
 			// _precond.solve(_g,_z);
 			beta = (_z.dot(AP)) / (_p.dot(AP));
 			_p = _z-beta*_p;
+			assert_eq(_p,_p);
 
 		  }else{
 			
+			cout << "exp\n";
 			//expansion step
 			xTmp = result-alphaF*_p;
 			_g -= alphaF*AP;
 			_projector.DECIDE_FACE(xTmp);
+			assert_eq(_g,_g);
 			_projector.PHI(_g, _phi);
 			xTmp -= _alphaBar*_phi;
 			_projector.project(xTmp,result);
@@ -101,27 +119,35 @@ namespace MATH{
 			_g -= _B;
 			_projector.DECIDE_FACE(result);
 
+			assert_eq(_g,_g);
 			_projector.PHI(_g, _phi);
 			_precond.solve(_phi,_z);
 
 			// _precond.solve(_g,_z);
 			_p = _z;
-
+			assert_eq(_p,_p);
 		  }
 		}else{
-		  
+
+		  cout << "prop\n";
 		  //proportioning
+		  assert_gt(beta_norm,0);
 		  D = _beta;
 		  _A.multiply(D,AD);
-		  alphaCG = (_g.dot(D)) / (D.dot(AD));
+		  assert_gt(AD.norm(),0);
+		  const T ddad = D.dot(AD);
+		  assert_ne(ddad,0);
+		  alphaCG = (_g.dot(D)) / ddad;
 		  result -= alphaCG*D;
 		  _g -= alphaCG*AD;
 		  _projector.DECIDE_FACE(result);
 
+		  assert_eq(_g,_g);
 		  _projector.PHI(_g, _phi);
 		  _precond.solve(_phi,_z);
 		  // _precond.solve(_g,_z);
 		  _p = _z;
+		  assert_eq(_p,_p);
 
 		}
 	  }

@@ -20,7 +20,7 @@ void test_findClosestPoint(){
   
   const Vec3d n = planes[0].head(3);
   const double b = planes[0][3];
-  assert_le(sqrt(n.dot(v)+b), 1e-12);
+  assert_le(sqrt(n.dot(v)+b), 1e-8);
 
   assert(found);
 

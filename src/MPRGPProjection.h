@@ -294,6 +294,7 @@ namespace MATH{
 		assert(found);
 	  	out.block(i,0,3,1) = v;
 	  }
+	  assert_ext(isFeasible(_planes,out),"x="<<in.transpose()<<"\nproject(x)="<<out.transpose());
 	}
 
 	void PHI(const Vec& in,Vec& out){
@@ -323,6 +324,8 @@ namespace MATH{
 	  	  out.block(i,0,3,1) = temp;
 	  	}
 	  }
+	  assert_eq(in,in);
+	  assert_eq(out,out);
 	}
 
 	void BETA(const Vec& in, Vec& out, const Vec&phi){
@@ -347,6 +350,7 @@ namespace MATH{
 	  	  out.block(i,0,3,1) = temp;
 	  	}
 	  }
+	  assert_eq(phi,phi);
 	}
 
 	void DECIDE_FACE(const Vec& x){
@@ -370,13 +374,16 @@ namespace MATH{
 
 	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi,const Vec&beta, const Vec&g){
 
+	  assert_ext(isFeasible(_planes,x),"x="<<x.transpose());
 	  assert_gt(alphaBar, ScalarUtil<T>::scalar_eps);
 	  assert_eq(x.size() % 3,0);
 	  assert_eq(x.size(), g.size());
 	  const Vec x_alpha_g = x-alphaBar*g;
 	  Vec px;
 	  project(x_alpha_g, px);
-	  return ((x-px)*(1.0f/alphaBar)-beta).dot(phi);
+	  const T phitphi = ((x-px)*(1.0f/alphaBar)-beta).dot(phi);
+	  assert_ge(phitphi,0);
+	  return phitphi;
 	}
 
   protected:
