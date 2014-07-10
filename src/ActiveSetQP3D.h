@@ -52,6 +52,7 @@ namespace MATH{
 
   inline bool findFeasible(const VVec4d& p,Vec3d& v){
 
+	v.setZero();
 	assert_eq(v,v);
 	size_t nrP=(size_t)p.size();
 	std::vector<double> weight(nrP,1.0f);
@@ -61,6 +62,7 @@ namespace MATH{
 	  Vec3d G=Vec3d::Zero();
 	  for(size_t i=0;i<nrP;i++){
 
+		assert_eq(v,v);
 		double E=weight[i]*std::exp(-dist(p[i],v));
 		H+=p[i].block<3,1>(0,0)*p[i].block<3,1>(0,0).transpose()*E;
 		G-=p[i].block<3,1>(0,0)*E;
@@ -72,6 +74,7 @@ namespace MATH{
 	  double minDist=0.0f;
 	  size_t minId=-1;
 	  for(size_t i=0;i<nrP;i++){
+		assert_eq(v,v);
 		double currDist=dist(p[i],v);
 		if(currDist < minDist){
 		  minDist=currDist;
@@ -207,6 +210,7 @@ namespace MATH{
 			continue;
 		  nDotDir=p[i].block<3,1>(0,0).dot(dir);
 		  if(nDotDir < 0.0f){
+			assert_eq(v,v);
 			distP=dist(p[i],v);
 			if(distP <= 0.0f){
 			  alphaK=0.0f;

@@ -360,6 +360,7 @@ namespace MATH{
 
 	  const size_t num_points = _face_indices.size();
 	  assert_eq(x.size(),num_points*3);
+	  assert_eq(x,x);
 	  for (int i = 0; i < num_points; i++ ){
 	  	_face_indices[i].clear();
 		Vec3X xi = x.block(i*3,0,3,1);
