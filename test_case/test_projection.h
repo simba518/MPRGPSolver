@@ -214,7 +214,7 @@ void test_OnePlaneProjector(){
   vector<Vector4d,aligned_allocator<Vector4d> > planes;
   {
 	Vector4d p;
-	p << 1,1,0,sqrt(2)*0.5f;
+	p << 1,1,0,sqrt(2.0)*0.5f;
 	p.head(3) /= p.head(3).norm();
 	planes.push_back(p);
   }
@@ -226,49 +226,49 @@ void test_OnePlaneProjector(){
 
   // test step limit
   {
-	x << 0,-2,0;
+	x << 0,2,0;
 	VectorXd d(x.size());
-	d << -1,0.0,0.0;
+	d << 1,0.0,0.0;
 	const double t = P.stepLimit(x,d);
-	assert_le(abs(t-1.0),1e-12);
+	assert_le(abs(t-3.0),1e-12);
   }
 
   // test PHI, BETA, infeasible point.
   {
-	x << 0,-1.0,0;
-	P.DECIDE_FACE(x);
-	VectorXd g(3),phi(3),beta(3),c(3);
-	g << 0,-1,0;
-	P.PHI(g, phi);
-	P.BETA(g,beta,phi);
-	c << 0.5,-0.5,0;
-	assert_le( (phi-c).norm(), 1e-12  );
-	c << -0.5,-0.5,0;
-	assert_le( (beta-c).norm(), 1e-12  );
+  	x << 0,-1.0,0;
+  	P.DECIDE_FACE(x);
+  	VectorXd g(3),phi(3),beta(3),c(3);
+  	g << 0,-1,0;
+  	P.PHI(g, phi);
+  	P.BETA(g,beta,phi);
+  	c << 0.5,-0.5,0;
+  	assert_le( (phi-c).norm(), 1e-12  );
+  	c << -0.5,-0.5,0;
+  	assert_le( (beta-c).norm(), 1e-12  );
   }
 
   // test PHI, BETA, feasible point.
   {
-	x << 0,-0.9,0;
-	P.DECIDE_FACE(x);
-	VectorXd g(3),phi(3),beta(3),c(3);
-	g << 0,-1,0;
-	P.PHI(g, phi);
-	P.BETA(g,beta,phi);
-	c << 0,-1,0;
-	assert_le( (phi-c).norm(), 1e-12  );
-	c << 0,0,0;
-	assert_le( (beta-c).norm(), 1e-12  );
+  	x << 0,-0.9,0;
+  	P.DECIDE_FACE(x);
+  	VectorXd g(3),phi(3),beta(3),c(3);
+  	g << 0,-1,0;
+  	P.PHI(g, phi);
+  	P.BETA(g,beta,phi);
+  	c << 0,-1,0;
+  	assert_le( (phi-c).norm(), 1e-12  );
+  	c << 0,0,0;
+  	assert_le( (beta-c).norm(), 1e-12  );
   }
 
   // test projection
   {
-	x << 0,-2.0,0;
-	VectorXd y(3);
-	P.project(x,y);
-	VectorXd c_y(3);
-	c_y << 0.5, -1.5, 0.0f;
-	assert_le((y-c_y).norm(),1e-12);
+  	x << 0,-2.0,0;
+  	VectorXd y(3);
+  	P.project(x,y);
+  	VectorXd c_y(3);
+  	c_y << 0.5, -1.5, 0.0f;
+  	assert_le((y-c_y).norm(),1e-12);
   }
 }
 

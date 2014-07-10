@@ -262,10 +262,12 @@ namespace MATH{
 	  	  const Vec3X nj = _planes[j].block(0,0,3,1);
 	  	  assert_in(nj.norm(),1.0f-ScalarUtil<T>::scalar_eps,1.0f+ScalarUtil<T>::scalar_eps);
 	  	  const T nd = nj.dot(di);
-	  	  if ( fabs(nd) > ScalarUtil<T>::scalar_eps ){
+	  	  // if ( fabs(nd) > ScalarUtil<T>::scalar_eps ){
+	  	  if ( nd > 0.0f ){
 	  		const T alpha_ij = (nj.dot(xi)+_planes[j][3])/nd;
-	  		if (alpha_ij > ScalarUtil<T>::scalar_eps)
-	  		  alpha = std::min<T>(alpha, alpha_ij);
+	  		// if (alpha_ij > ScalarUtil<T>::scalar_eps)
+			if (alpha_ij >= 0)
+			  alpha = std::min<T>(alpha, alpha_ij);
 	  	  }
 	  	}
 	  }
@@ -282,6 +284,7 @@ namespace MATH{
 	  
 	  Vec3X v;
 	  Vector3i aSet;
+	  v.setZero();
 	  const bool found = findFeasible(_planes,v);
 	  if(!found){
 		cout << "error: can not found a feasible point.\n";

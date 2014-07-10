@@ -12,6 +12,7 @@ double ScalarUtil<double>::scalar_eps=1E-9;
 int main(int argc, char *argv[]){
 
   test_findClosestPoint();
+  test_findClosestPoint2();
   test_LowerBoundProjector();
   test_PlaneProjector();
   test_OnePlaneProjector();

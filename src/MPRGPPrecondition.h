@@ -45,7 +45,8 @@ namespace MATH{
 	  for(size_t i=0; i<rhs.size(); i++){
 		assert_ne( _matrix.diag(i), 0);
 		// if( 0 == _face[i] )
-		result[i]=rhs[i]/_matrix.diag(i);
+		// result[i]=rhs[i]/_matrix.diag(i);
+		result[i]=rhs[i];
 		// else
 		//   result[i]=0.0f;
 	  }

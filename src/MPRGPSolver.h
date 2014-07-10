@@ -56,7 +56,7 @@ namespace MATH{
 	  size_t iteration=0;
 	  for(; iteration<_maxIterations; iteration++){
 
-		cout << "MPRGP:iter = " << iteration << endl;
+		// cout << "MPRGP:iter = " << iteration << endl;
 
 		//test termination
 		assert_eq(_g,_g);
@@ -81,24 +81,27 @@ namespace MATH{
 		  _A.multiply(_p,AP);
 		  const T pd = _p.dot(AP);
 		  assert_eq(pd,pd);
-		  assert(pd!=0);
+		  assert_gt(pd,0); // pd = p^t*A*p > 0
 		  alphaCG = (_z.dot(_g)) / pd;
 		  assert_eq(alphaCG, alphaCG);
+		  assert_ge(alphaCG,0.0f);
 		  y = result-alphaCG*_p;
 		  alphaF = _projector.stepLimit(result,_p);
 		  assert_eq(alphaF, alphaF);
-		  
+		  assert_ge(alphaF,0.0f);
 		  if(alphaCG <= alphaF){
 
 			//conjugate gradient step
 			assert_ge(alphaCG,0.0f);
-			cout << "cg\n";
+			// cout << "cg\n";
 			result = y;
 			_g -= alphaCG*AP;
 
 			assert_eq(_g,_g);
 			_projector.PHI(_g, _phi);
+			assert_ge(_g.dot(_phi),0.0);
 			_precond.solve(_phi,_z);
+			assert_ge(_g.dot(_z),0.0);
 			// _precond.solve(_g,_z);
 			beta = (_z.dot(AP)) / (_p.dot(AP));
 			_p = _z-beta*_p;
@@ -106,7 +109,7 @@ namespace MATH{
 
 		  }else{
 			
-			cout << "exp\n";
+			// cout << "exp\n";
 			//expansion step
 			xTmp = result-alphaF*_p;
 			_g -= alphaF*AP;
@@ -129,7 +132,7 @@ namespace MATH{
 		  }
 		}else{
 
-		  cout << "prop\n";
+		  // cout << "prop\n";
 		  //proportioning
 		  assert_gt(beta_norm,0);
 		  D = _beta;

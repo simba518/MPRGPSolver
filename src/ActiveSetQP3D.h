@@ -19,14 +19,17 @@ namespace MATH{
 
   // the plane is defined as p[1:3].dot(y)+p=0.
   inline double dist(const Vec4d& p,const Vec3d& v){
+	assert_eq(v,v);
 	return v.dot(p.block<3,1>(0,0))+p[3];
   }
 
   inline bool isFeasible(const VVec4d& p,const Vec3d& v){
 
+	assert_eq(v,v);
 	size_t nrP=(size_t)p.size();
 	for(size_t i=0;i<nrP;i++)
 	  if(dist(p[i],v) < -ScalarUtil<double>::scalar_eps){
+		// if(dist(p[i],v) < 0){
 		cout << "dist(p,v): " << dist(p[i],v) << endl;
 		return false;
 	  }
@@ -35,6 +38,7 @@ namespace MATH{
 
   inline bool isFeasible(const VVec4d& p,const VectorXd& v){
 
+	assert_eq(v,v);
 	assert_eq(v.size()%3,0);
 	for (int i = 0; i < v.size(); i+=3){
 	  const Vec3d vi = v.segment(i,3);
@@ -48,6 +52,7 @@ namespace MATH{
 
   inline bool findFeasible(const VVec4d& p,Vec3d& v){
 
+	assert_eq(v,v);
 	size_t nrP=(size_t)p.size();
 	std::vector<double> weight(nrP,1.0f);
 	for(size_t iter=0;iter<100*nrP;iter++){
@@ -76,6 +81,7 @@ namespace MATH{
 	  if(minId == -1)break;
 	  weight[minId]*=2.0f;
 	}
+	assert_eq(v,v);
 	return isFeasible(p,v);
   }
 
@@ -89,164 +95,169 @@ namespace MATH{
   //
   //here the initial guess must be feasible or you should call:
   //findFeasible(p,v)
-  inline bool findClosestPoint(const VVec4d& p,const Vec3d& v0,Vec3d& v,Vec3i& aSet,double eps=1E-18)
-  {
+  inline bool findClosestPoint(const VVec4d& p,const Vec3d& v0,Vec3d& v,Vec3i& aSet,double eps=1E-18){
+	
+	assert(isFeasible(p,v));
+	assert_eq(v,v);
+	assert_eq(v0,v0);
+
 	{// if there is only one plane...
-	  if (1 == p.size()){
-		aSet.setConstant(-1);
-		const double alpha = dist(p[0],v0);
-		if (alpha >= eps){
-		  v = v0;
-		}else {
-		  aSet[0] = 0;
-		  v = v0-alpha*p[0].head(3);
-		}
-		assert(isFeasible(p,v));
-		return true;
-	  }
+	  // if (1 == p.size()){
+	  // 	aSet.setConstant(-1);
+	  // 	const double alpha = dist(p[0],v0);
+	  // 	if (alpha >= eps){
+	  // 	  v = v0;
+	  // 	}else {
+	  // 	  aSet[0] = 0;
+	  // 	  v = v0-(alpha-eps)*p[0].head(3);
+	  // 	}
+	  // 	assert(isFeasible(p,v));
+	  // 	return true;
+	  // }
 	}
 
 	//rearrange
 	char nrA=0;
 	int nrP=(int)p.size();
 	vector<bool> aTag(nrP,false);
-	for(char d=0;d<3;d++)
-	  if(aSet[d] != -1)
-		{
-		  assert_in(aSet[d],0,aTag.size()-1);
-		  aTag[aSet[d]]=true;
-		  aSet[nrA++]=aSet[d];
-		}
+	for(char d=0;d<3;d++){
+	  if(aSet[d] != -1){
+		assert_in(aSet[d],0,aTag.size()-1);
+		aTag[aSet[d]]=true;
+		aSet[nrA++]=aSet[d];
+	  }
+	}
 
 	//forward decl for mainIter
-	int minA;
+	int minA = -1;
 	double minLambda,alphaK,nDotDir,distP;
 
 	Mat2d M2;
 	Mat3d A,M3;
 	Vec3d dir,lambda;
+	dir.setZero();
+	lambda.setZero();
 
 	const int max_it = 1000;
-	for (int it = 0; it < max_it; ++it)
-	  {
-		//step 1: solve the following equation:
-		// I*v + A^T*\lambda = v0
-		// A*v + d = 0
-		//where we use schur complementary method
-		for(char d=0;d<nrA;d++)
-		  lambda[d]=dist(p[aSet[d]],v0);
-		if(nrA == 0){
-		  dir=v0;
-		  dir-=v;
-		}else if(nrA == 1){
-		  //the plane's normal has already been normalized
-		  dir=v0-p[aSet[0]].block<3,1>(0,0)*lambda[0];
-		  dir-=v;
-		}else if(nrA == 2){
-		  A.row(0)=p[aSet[0]].block<3,1>(0,0);
-		  A.row(1)=p[aSet[1]].block<3,1>(0,0);
-		  M2=A.block<2,3>(0,0)*A.block<2,3>(0,0).transpose();
-		  lambda.block<2,1>(0,0)=M2.llt().solve(lambda.block<2,1>(0,0));
-		  dir=v0-A.block<2,3>(0,0).transpose()*lambda.block<2,1>(0,0);
-		  dir-=v;
-		}else if(nrA == 3){
-		  A.row(0)=p[aSet[0]].block<3,1>(0,0);
-		  A.row(1)=p[aSet[1]].block<3,1>(0,0);
-		  A.row(2)=p[aSet[2]].block<3,1>(0,0);
-		  M3=A*A.transpose();
-		  lambda=M3.llt().solve(lambda);
-		  //dir=v0-A.transpose()*lambda;
-		  dir.setZero();	//in that case, no dir can be allowed
-		}
+	for (int it = 0; it < max_it; ++it){
 
-		//step 2: test stop if p is very small
-		if(dir.squaredNorm() < eps)
-		  {
-			minA=-1;
-			minLambda=0.0f;
-			for(char d=0;d<nrA;d++)
-			  if(lambda[d] > minLambda)
-				{
-				  minA=d;
-				  minLambda=lambda[d];
-				}
-			//aha, we have all negative lagrangian multiplier, exit now!
-			if(minA == -1){
-			  for (int k = nrA; k < 3; ++k)
-				aSet[k] = -1;
-			  return true;
-			}
-			//for the most positive component, we remove it from active set
-			if(nrA > 1)
-			  {
-				aTag[minA]=false;
-				aSet[minA]=aSet[nrA-1];
-			  }
-			aSet[nrA-1]=-1;
-			nrA--;
-		  }
-		else
-		  {
-		    assert_le(nrA,2);
-			// ASSERT_MSG(nrA <= 2,"My God, that's impossible!")
-			//step 3: move until we are blocked
-			minA=-1;
-			alphaK=1.0f;
-			for(int i=0;i<nrP;i++)
-			  {
-				nDotDir=p[i].block<3,1>(0,0).dot(dir);
-				if(nDotDir < 0.0f)
-				  {
-					distP=dist(p[i],v);
-					if(distP <= 0.0f)
-					  {
-						if(!aTag[i])
-						  {
-							alphaK=0.0f;
-							minA=i;
-							break;
-						  }
-					  }
-					else
-					  {
-						distP/=-nDotDir;
-						if(distP < alphaK)
-						  {
-							alphaK=distP;
-							minA=i;
-						  }
-					  }
-				  }
-			  }
-			v+=alphaK*dir;
-
-			if(minA >= 0)
-			  {
-				//already in active set, so this is rounding error
-				for(char d=0;d<nrA;d++)
-
-				  if(minA == aSet[d]){
-					cout << "error: " << "rounding error\n";
-					cout<< setprecision(10) << "v0: " << v0.transpose() << endl;
-					cout<< setprecision(10) << "v: " << v.transpose() << endl;
-					cout<< "s: " << aSet.transpose() << endl;
-					const Vec3d n = p[minA].head(3);
-					const double b = p[minA][3];
-					cout << "dv0: "<< n.dot(v0)+b << endl;
-					cout << "dv: "<< n.dot(v)+b << endl;
-					return false;
-				  }
-				//expand active set
-				aTag[minA]=true;
-				aSet[nrA++]=minA;
-			  }
-		  }
+	  //step 1: solve the following equation:
+	  // I*v + A^T*\lambda = v0
+	  // A*v + d = 0
+	  //where we use schur complementary method
+	  
+	  for(char d=0;d<nrA;d++){
+		lambda[d]=dist(p[aSet[d]],v0);
 	  }
+
+	  if(nrA == 0){
+		dir=v0;
+		dir-=v;
+	  }else if(nrA == 1){
+		//the plane's normal has already been normalized
+		dir=v0-p[aSet[0]].block<3,1>(0,0)*lambda[0];
+		dir-=v;
+	  }else if(nrA == 2){
+		A.row(0)=p[aSet[0]].block<3,1>(0,0);
+		A.row(1)=p[aSet[1]].block<3,1>(0,0);
+		M2=A.block<2,3>(0,0)*A.block<2,3>(0,0).transpose();
+		lambda.block<2,1>(0,0)=M2.llt().solve(lambda.block<2,1>(0,0));
+		dir=v0-A.block<2,3>(0,0).transpose()*lambda.block<2,1>(0,0);
+		dir-=v;
+	  }else if(nrA == 3){
+		A.row(0)=p[aSet[0]].block<3,1>(0,0);
+		A.row(1)=p[aSet[1]].block<3,1>(0,0);
+		A.row(2)=p[aSet[2]].block<3,1>(0,0);
+		M3=A*A.transpose();
+		lambda=M3.llt().solve(lambda);
+		//dir=v0-A.transpose()*lambda;
+		dir.setZero();	//in that case, no dir can be allowed
+	  }
+
+	  //step 2: test stop if p is very small
+	  if(dir.squaredNorm() < eps){
+		minA=-1;
+		minLambda=0.0f;
+		for(char d=0;d<nrA;d++)
+		  if(lambda[d] > minLambda){
+			minA=d;
+			minLambda=lambda[d];
+		  }
+		//aha, we have all negative lagrangian multiplier, exit now!
+		if(minA == -1){
+		  for (int k = nrA; k < 3; ++k)
+			aSet[k] = -1;
+		  return true;
+		}
+		//for the most positive component, we remove it from active set
+		if(nrA > 1){
+		  aTag[minA]=false;
+		  aSet[minA]=aSet[nrA-1];
+		}
+		aSet[nrA-1]=-1;
+		nrA--;
+	  }else{
+		assert_le(nrA,2);
+		// ASSERT_MSG(nrA <= 2,"My God, that's impossible!")
+		//step 3: move until we are blocked
+		minA=-1;
+		alphaK=1.0f;
+		for(int i=0;i<nrP;i++){
+		  if (aTag[i])
+			continue;
+		  nDotDir=p[i].block<3,1>(0,0).dot(dir);
+		  if(nDotDir < 0.0f){
+			distP=dist(p[i],v);
+			if(distP <= 0.0f){
+			  alphaK=0.0f;
+			  minA=i;
+			  break;
+			}else{
+			  distP/=-nDotDir;
+			  if(distP < alphaK){
+				alphaK=distP;
+				minA=i;
+			  }
+			}
+		  }
+		}
+		v+=alphaK*dir;
+
+		if(minA >= 0){
+		  //already in active set, so this is rounding error
+		  for(char d=0;d<nrA;d++)
+			if(minA == aSet[d]){
+			  cout << "error: " << "rounding error\n";
+			  cout<< setprecision(14) << "v0: " << v0.transpose() << endl;
+			  cout<< setprecision(14) << "v: " << v.transpose() << endl;
+			  cout<< "s: " << aSet.transpose() << endl;
+			  const Vec3d n = p[minA].head(3);
+			  const double b = p[minA][3];
+			  cout << "dv0: "<< n.dot(v0)+b << endl;
+			  cout << "dv: "<< n.dot(v)+b << endl;
+			  return false;
+			}
+		  //expand active set
+		  aTag[minA]=true;
+		  aSet[nrA++]=minA;
+		}
+	  }
+	}
+
+	cout<<"error: not convergent for "<<max_it<<" iterations in finding closest point."<<endl;
+	cout<< setprecision(14) << "v0: " << v0.transpose() << endl;
+	cout<< setprecision(14) << "v: " << v.transpose() << endl;
+	cout<< "s: " << aSet.transpose() << endl;
+	cout<< "minA: " << minA << endl;
+	if (minA >= 0){
+	  const Vec3d n = p[minA].head(3);
+	  const double b = p[minA][3];
+	  cout << "dv0: "<< n.dot(v0)+b << endl;
+	  cout << "dv: "<< n.dot(v)+b << endl;
+	}
 
 	for (int k = nrA; k < 3; ++k)
 	  aSet[k] = -1;
-
-	cout << "error: not convergent for "<<max_it<<" iterations in finding closest point."<<endl;
 	return false;
   }
 
