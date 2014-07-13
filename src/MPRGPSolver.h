@@ -30,6 +30,8 @@ namespace MATH{
 	}
 	
 	int solve(Vec &result){
+
+	  FUNC_TIMER();
 	  
 	  //declaration
 	  T alphaCG,alphaF,beta;
@@ -47,16 +49,17 @@ namespace MATH{
 	  assert_eq(_g,_g);
 	  _projector.PHI(_g, _phi);
 	  _precond.solve(_phi,_z);
-	  // _precond.solve(_g,_z);
 	  _p = _z;
 	  assert_eq(_p,_p);
 	  int result_code = -1;
+	  
+	  int num_cg=0, num_exp=0, num_prop=0;
 
 	  //MPRGP iteration
 	  size_t iteration=0;
 	  for(; iteration<_maxIterations; iteration++){
 
-		// cout << "MPRGP:iter = " << iteration << endl;
+		DEBUG_LOG(setprecision(10)<<"func: "<<_A.funcValue(result,_B));
 
 		//test termination
 		assert_eq(_g,_g);
@@ -65,8 +68,9 @@ namespace MATH{
 		assert_eq(_phi.size(), _beta.size());
 		_gp = _phi+_beta;
 		_residualOut=_gp.norm();
+		INFO_LOG(setprecision(10)<<"residual: "<<_residualOut);
 		if(_residualOut < _toleranceFactor){
-		  _iterationsOut=iteration;
+		  _iterationsOut = iteration;
 		  result_code = 0;
 		  break;
 		}
@@ -90,10 +94,10 @@ namespace MATH{
 		  assert_eq(alphaF, alphaF);
 		  assert_ge(alphaF,0.0f);
 		  if(alphaCG <= alphaF){
-
 			//conjugate gradient step
+			INFO_LOG("cg step");
+			num_cg ++;
 			assert_ge(alphaCG,0.0f);
-			// cout << "cg\n";
 			result = y;
 			_g -= alphaCG*AP;
 
@@ -102,15 +106,14 @@ namespace MATH{
 			assert_ge(_g.dot(_phi),0.0);
 			_precond.solve(_phi,_z);
 			assert_ge(_g.dot(_z),0.0);
-			// _precond.solve(_g,_z);
 			beta = (_z.dot(AP)) / (_p.dot(AP));
 			_p = _z-beta*_p;
 			assert_eq(_p,_p);
 
 		  }else{
-			
-			// cout << "exp\n";
 			//expansion step
+			INFO_LOG("exp step");
+			num_exp ++;
 			xTmp = result-alphaF*_p;
 			_g -= alphaF*AP;
 			_projector.DECIDE_FACE(xTmp);
@@ -131,9 +134,9 @@ namespace MATH{
 			assert_eq(_p,_p);
 		  }
 		}else{
-
-		  // cout << "prop\n";
 		  //proportioning
+		  INFO_LOG("prop step");
+		  num_prop ++;
 		  assert_gt(beta_norm,0);
 		  D = _beta;
 		  _A.multiply(D,AD);
@@ -148,16 +151,19 @@ namespace MATH{
 		  assert_eq(_g,_g);
 		  _projector.PHI(_g, _phi);
 		  _precond.solve(_phi,_z);
-		  // _precond.solve(_g,_z);
 		  _p = _z;
 		  assert_eq(_p,_p);
 
 		}
 	  }
 
-	  if (iteration >= _maxIterations){
-		cout << "not convergent with "<< _maxIterations << " iterations."<<endl;
-	  }
+	  WARN_LOG_COND("MPRGP not convergent with "<< _maxIterations << " iterations."<<endl, iteration >= _maxIterations);
+	  INFO_LOG("cg steps: "<< num_cg);
+	  INFO_LOG("exp steps: "<< num_exp);
+	  INFO_LOG("prop steps: "<< num_prop);
+	  INFO_LOG("MPRGP iter: "<<iteration);
+	  INFO_LOG("constraints: "<<COUNT_CONSTRAINTS(_projector.getFace()));
+
 	  return result_code;
 	}
 
@@ -171,6 +177,8 @@ namespace MATH{
 	T residualOut()const{return _residualOut;}
 	static T specRad(const MAT& G,Vec* ev=NULL,const T& eps=1E-3f){
 
+	  FUNC_TIMER()
+
 	  T delta;
 	  Vec tmp,tmpOut;
 	  tmp.resize(G.rows());
@@ -178,24 +186,30 @@ namespace MATH{
 	  tmp.setRandom();
 	  tmp.normalize();
 
+	  T normTmpOut = 1.0;
 	  //power method
 	  // for(size_t iter=0;;iter++){ /// @todo
-	  for(size_t iter=0;iter <= 1000;iter++){
+	  size_t iter=0;
+	  for(;iter <= 1000;iter++){
 		G.multiply(tmp,tmpOut);
-		T normTmpOut=tmpOut.norm();
+		normTmpOut=tmpOut.norm();
 		if(normTmpOut < ScalarUtil<T>::scalar_eps){
 		  if(ev)*ev=tmp;
-		  return ScalarUtil<T>::scalar_eps;
+		  normTmpOut = ScalarUtil<T>::scalar_eps;
+		  break;
 		}
 		tmpOut/=normTmpOut;
 		delta=(tmpOut-tmp).norm();
+		INFO_LOG(setprecision(10)<<"power delta: "<<delta);
 		// printf("Power Iter %d Err: %f, SpecRad: %f\n",iter,delta,normTmpOut);
 		if(delta <= eps){
 		  if(ev)*ev=tmp;
-		  return normTmpOut;
+		  break;
 		}
 		tmp=tmpOut;
 	  }
+	  INFO_LOG("power iter: "<<iter);
+	  return normTmpOut;
 	}
 
   protected:
@@ -236,14 +250,27 @@ namespace MATH{
 		  }
 		}
 	}
+	
+	// result = A*x
 	template <typename VEC,typename VEC_OUT>
 	void multiply(const VEC& x,VEC_OUT& result)const{
 	  assert_eq(A.cols(), x.size());
 	  result = A*x;
 	}
+	
+	// return 1/2*x^t*A*x+x^t*b
+	template <typename VEC, typename VEC_SECOND>
+	T funcValue(const VEC& x,VEC_SECOND&b)const{
+	  assert_eq(A.rows(),x.size());
+	  assert_eq(A.cols(),x.size());
+	  assert_eq(b.size(),x.size());
+	  return 0.5f*x.dot(A*x)+x.dot(b);
+	}
+
 	int rows()const{
 	  return A.rows();
 	}
+
 	double diag(const int i)const{
 	  assert_in(i,0,diag_A.size()-1);
 	  return diag_A[i];

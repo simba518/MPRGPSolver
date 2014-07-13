@@ -99,6 +99,8 @@ namespace MATH{
   //here the initial guess must be feasible or you should call:
   //findFeasible(p,v)
   inline bool findClosestPoint(const VVec4d& p,const Vec3d& v0,Vec3d& v,Vec3i& aSet,double eps=1E-18){
+
+	// FUNC_TIMER();
 	
 	assert(isFeasible(p,v));
 	assert_eq(v,v);

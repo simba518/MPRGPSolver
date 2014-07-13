@@ -32,8 +32,8 @@ void test_LowerBoundProjector(){
   // decide face
   X << 1,3;
   P.DECIDE_FACE(X);
-  assert_eq(P.getFace()[0],-1);
-  assert_eq(P.getFace()[1],0);
+  assert_eq((int)P.getFace()[0],2);
+  assert_eq((int)P.getFace()[1],0);
 
   // PHI
   VectorXd g(2), phi(2);

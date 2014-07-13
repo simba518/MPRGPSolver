@@ -85,7 +85,7 @@ namespace MATH{
 	  OMP_PARALLEL_FOR_
 		for(size_t i=0;i<x.size();i++){
 		  if(abs(x[i]-L[i]) < ScalarUtil<T>::scalar_eps)
-			_face[i]=-1;
+			_face[i]=2;
 		}
 
 	}
@@ -187,7 +187,7 @@ namespace MATH{
 	  OMP_PARALLEL_FOR_
 		for(size_t i=0;i<x.rows();i++)
 		  if(abs(x[i]-L[i]) < ScalarUtil<T>::scalar_eps)
-			_face[i]=-1;
+			_face[i]=2;
 		  else if(abs(x[i]-H[i]) < ScalarUtil<T>::scalar_eps)
 			_face[i]=1;
 	}
