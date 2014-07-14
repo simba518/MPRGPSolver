@@ -188,4 +188,12 @@ void testMPRGPPlaneSolver3D_OnePlane(){
   assert_eq(c,0);
 }
 
+void testSolverFromFile(){
+
+  const string dir = "./test_case/data/";
+  VectorXd x;
+  int rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_vp.QP",x);
+  assert_eq_ext(rlst_code,0,dir+"one_tet_vp.QP");
+}
+
 #endif /* _TEST_SOLVER_H_ */

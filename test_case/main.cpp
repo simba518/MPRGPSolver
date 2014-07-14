@@ -26,5 +26,7 @@ int main(int argc, char *argv[]){
   testMPRGPPlaneSolver3D();
   testMPRGPPlaneSolver3D_OnePlane();
 
+  testSolverFromFile();
+
   return 0;
 }
