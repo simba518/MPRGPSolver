@@ -178,6 +178,14 @@ void testMPRGPPlaneSolver3D_OnePlane(){
   correct_x << -0.5,-0.5,0.0;
   assert_le((x-correct_x).norm(),1e-12);
   assert_eq(rlst_code,0);
+
+  // test save and load then solve.
+  VectorXd x2(x.size());
+  x2.setZero();
+  assert(writeQP(A,b,planes,x2,"tempt_test_io.mat"));
+  const int c = MPRGPPlane<double>::solve("tempt_test_io.mat",x2);
+  assert_le((x2-x).norm(),1e-10);
+  assert_eq(c,0);
 }
 
 #endif /* _TEST_SOLVER_H_ */

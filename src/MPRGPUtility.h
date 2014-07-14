@@ -45,7 +45,10 @@
 #define FUNC_TIMER()
 #endif /* UTILITY_LOG */
 
+#include <iostream>
+#include <fstream>
 #include <omp.h>
+using namespace std;
 
 #ifdef _MSC_VER
 #define STRINGIFY(X) X
@@ -59,7 +62,7 @@
 #define OMP_CRITICAL_ PRAGMA(STRINGIFY(omp critical))
 
 namespace MATH{
-  
+
   template <typename T>
   struct ScalarUtil;
   template <>
@@ -95,6 +98,122 @@ namespace MATH{
 	}
 	return c;
   }
+
+#define VVEC4X_T vector<Eigen::Matrix<T,4,1>, Eigen::aligned_allocator<Eigen::Matrix<T,4,1> > >
+
+  // save the problem to the file: A, B, x0 and the constraints, i.e planes.
+  // the problem is: 
+  // min_{x} 1/2*x^t*A*x-x^t*B s.t. n_i*x_j+p_i>= 0
+  template<typename T>
+  inline bool writeQP(const Eigen::SparseMatrix<T> &A,const Eigen::Matrix<T,-1,1> &B,
+					  const VVEC4X_T &planes,
+					  const Eigen::Matrix<T,-1,1> &x0,const string file_name){
+	  
+	ofstream out;
+	out.open(file_name.c_str());
+	if (!out.is_open()){
+	  ERROR_LOG("failed to open the file: "<<file_name);
+	  return false;
+	}
+
+	// write A
+	out << "dimension " << A.rows() << "\n";
+	out << "planes "<< planes.size() << "\n";
+	out << "A\n";
+	out << "non_zeros "<< A.nonZeros() << "\n";
+	for(int k=0;k<A.outerSize();++k)
+	  for(typename Eigen::SparseMatrix<T>::InnerIterator it(A,k);it;++it)
+		out << it.row()<<"\t"<<it.col()<<"\t"<<setprecision(12)<<it.value()<<"\n";
+	  
+	// write B
+	out << "B\n";
+	if (B.size() > 0) 
+	  out<< setprecision(12) << B[0];
+	for (int i = 1; i < B.size(); ++i)
+	  out<< setprecision(12) << "\t" << B[i];
+	out << "\n";
+
+	// write P
+	out << "P\n";
+	for (int i = 0; i < planes.size(); ++i)
+	  out<< setprecision(12) << planes[i][0] << "\t"<< planes[i][1] << "\t" << planes[i][2] << "\t"<< planes[i][3] << "\n";
+
+	// write x0
+	out << "x0\n";
+	if (x0.size() > 0)
+	  out<< setprecision(12) << x0[0];
+	for (int i = 1; i < x0.size(); ++i)
+	  out<< setprecision(12) << "\t" << x0[i];
+	out << "\n";
+
+	const bool succ = out.good();
+	out.close();
+	return succ;
+  }
+
+  // load the problem from file
+  template<typename T>
+  inline bool loadQP(Eigen::SparseMatrix<T> &A,Eigen::Matrix<T,-1,1> &B,
+					 VVEC4X_T &planes,
+					 Eigen::Matrix<T,-1,1> &x0,const string file_name){
+	ifstream in;
+	in.open(file_name.c_str());
+	if (!in.is_open()){
+	  ERROR_LOG("failed to open the file: "<<file_name);
+	  return false;
+	}
+
+	// read dimension
+	string temp_str;
+	int n, num_planes;
+	in >> temp_str >> n >> temp_str >> num_planes;
+	assert_ge(n,0);
+	assert_ge(num_planes,0);
+
+	A.resize(n,n);
+	B.resize(n);
+	x0.resize(n);
+	planes.resize(num_planes);
+
+	// read A
+	int nnz;
+	in >> temp_str >> temp_str >> nnz;
+	assert_ge(nnz,0);
+	A.reserve(nnz);
+	std::vector<Eigen::Triplet<T> > tri;
+	tri.reserve(nnz);
+	for (int i = 0; i < nnz; ++i){
+	  int row,col;
+	  double value;
+	  in >> row >> col >> value;
+	  assert_in(row,0,n-1);
+	  assert_in(col,0,n-1);
+	  tri.push_back(Eigen::Triplet<T>(row,col,value));
+	}
+	A.setFromTriplets(tri.begin(), tri.end());
+	  
+	// write B
+	in >> temp_str;
+	for (int i = 0; i < B.size(); ++i) in >> B[i];
+
+	// write P
+	in >> temp_str;
+	for (int i = 0; i < planes.size(); ++i){
+	  in >> planes[i][0];
+	  in >> planes[i][1];
+	  in >> planes[i][2];
+	  in >> planes[i][3];
+	}
+
+	// write x0
+	in >> temp_str;
+	for (int i = 0; i < x0.size(); ++i) in >> x0[i];
+
+	const bool succ = in.good();
+	in.close();
+	return succ;
+  }
+  
 }
 
 #endif /* _MPRGPUTILITY_H_ */

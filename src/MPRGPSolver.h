@@ -10,6 +10,10 @@ namespace MATH{
    * @class MPRGP a framework for the MPRGP method, with
    * preconditioning and projecting method can be changed through the
    * template parameters.
+   * 
+   * Solve such problem:
+   * min_{x} 1/2*x^t*A*x-x^t*B s.t. n_i*x_j+p_i>= 0
+   * 
    */
   template <typename T, typename MAT, typename PROJECTOIN,typename PRECONDITION>
   class MPRGP{
@@ -258,13 +262,13 @@ namespace MATH{
 	  result = A*x;
 	}
 	
-	// return 1/2*x^t*A*x+x^t*b
+	// return 1/2*x^t*A*x-x^t*b
 	template <typename VEC, typename VEC_SECOND>
 	T funcValue(const VEC& x,VEC_SECOND&b)const{
 	  assert_eq(A.rows(),x.size());
 	  assert_eq(A.cols(),x.size());
 	  assert_eq(b.size(),x.size());
-	  return 0.5f*x.dot(A*x)+x.dot(b);
+	  return 0.5f*x.dot(A*x)-x.dot(b);
 	}
 
 	int rows()const{
@@ -334,6 +338,19 @@ namespace MATH{
 	  const int rlst_code = solver.solve(x);
 	  return rlst_code;
 	}
+
+	// load the problem from file, then solve it.
+	static int solve(const string file_name, Vec&x, const T tol=1e-3, const int max_it = 1000){
+
+	  SparseMatrix<T> A;
+	  Vec B;
+	  VVec4X planes;
+	  int code = -1;
+	  if (loadQP(A,B,planes,x,file_name))
+		code = solve(FixedSparseMatrix<double>(A),B,planes,x,tol,max_it);
+	  return code;
+	}
+
   };
   
 }//end of namespace
