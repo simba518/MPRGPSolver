@@ -70,6 +70,7 @@ namespace MATH{
 		_projector.PHI(_g,_phi);
 		_projector.BETA(_g,_beta,_phi);
 		assert_eq(_phi.size(), _beta.size());
+		assert_le(_phi.dot(_beta),ScalarUtil<T>::scalar_eps);
 		_gp = _phi+_beta;
 		_residualOut=_gp.norm();
 
@@ -80,7 +81,8 @@ namespace MATH{
 		INFO_LOG("beta: "<<_beta.transpose());
 
 		// debug
-		assert(writeVTK(result, "beta_phi_g.vtk"));
+		// assert(writeVTK(result, "beta_phi_g.vtk"));
+		// assert(printFace());
 
 		if(_residualOut <= _toleranceFactor){
 		  _iterationsOut = iteration;
@@ -234,9 +236,9 @@ namespace MATH{
 
 	  Vec points(x.size()*4);
 	  points.head(x.size()) = x;
-	  points.segment(x.size(), x.size()) = _phi+x;
+	  points.segment(x.size(), x.size()) = _phi*0+x;
 	  points.segment(x.size()*2, x.size()) = _beta+x;
-	  points.segment(x.size()*3, x.size()) = _g+x;
+	  points.segment(x.size()*3, x.size()) = _g*0+x;
 
 	  ofstream out;
 	  out.open(filename.c_str());
@@ -274,6 +276,14 @@ namespace MATH{
 	  const bool succ = out.good();
 	  out.close();
 	  return succ;
+	}
+	bool printFace()const{
+	  const vector<char> &f = _projector.getFace();
+	  cout << "face: ";
+	  for (int i = 0; i < f.size(); ++i)
+		cout << (int)f[i] << " ";
+	  cout << "\n";
+	  return true;
 	}
 
   protected:
@@ -406,8 +416,12 @@ namespace MATH{
 	  Vec B;
 	  VVec4X planes;
 	  int code = -1;
-	  if (loadQP(A,B,planes,x,file_name))
+	  if (loadQP(A,B,planes,x,file_name)){
+		for (int i = 0; i < planes.size(); ++i){
+		  DEBUG_LOG("planes"<<i<<": "<<planes[i].transpose());
+		}
 		code = solve(FixedSparseMatrix<double>(A),B,planes,x,tol,max_it);
+	  }
 	  return code;
 	}
 

@@ -315,10 +315,13 @@ namespace MATH{
 	  	if (3 <= _face[i]){
 	  	  out.block(i,0,3,1).setZero();
 	  	}else if (2 == _face[i]){
-	  	  projectToPlane(_face_indices[i/3][0], in.block(i,0,3,1), temp);
-	  	  out.block(i,0,3,1) = temp;
-	  	  projectToPlane(_face_indices[i/3][1], out.block(i,0,3,1), temp);
-	  	  out.block(i,0,3,1) = temp;
+		  const int f0 = _face_indices[i/3][0];
+		  const int f1 = _face_indices[i/3][1];
+		  assert_ne(f0,f1);
+		  const Vec3X n0 = _planes[f0].block(0,0,3,1);
+		  const Vec3X n1 = _planes[f1].block(0,0,3,1);
+		  const Vec3X n = n0.cross(n1);
+		  out.block(i,0,3,1) = in.block(i,0,3,1).dot(n)*n;
 	  	}else if (1 == _face[i]){
 	  	  projectToPlane(_face_indices[i/3][0], in.block(i,0,3,1), temp);
 	  	  out.block(i,0,3,1) = temp;
@@ -392,6 +395,7 @@ namespace MATH{
 
 	  assert_in(plane_index, 0 ,_planes.size()-1);
 	  const Vec3X n = _planes[plane_index].block(0,0,3,1);
+	  DEBUG_LOG("n"<<plane_index<<": "<<n.transpose());
 	  assert_in(n.norm(),1.0f-ScalarUtil<T>::scalar_eps,1.0f+ScalarUtil<T>::scalar_eps);
 	  out = in-in.dot(n)*n;
 	}
