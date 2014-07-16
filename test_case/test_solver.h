@@ -192,7 +192,7 @@ void testSolverFromFile(){
 
   const string dir = "./test_case/data/";
   VectorXd x;
-  int rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_vp.QP",x);
+  int rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_vp.QP",x,1e-3,100);
   assert_eq_ext(rlst_code,0,dir+"one_tet_vp.QP");
 }
 

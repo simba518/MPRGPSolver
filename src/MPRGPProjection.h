@@ -29,7 +29,7 @@ namespace MATH{
 	}
 
 	// return the largest step in direction -D.
-	T stepLimit(const Vec& X,const Vec& D) const{
+	T stepLimit(const Vec& X,const Vec& D, const T alpha_cg=ScalarUtil<T>::scalar_max) const{
 
 	  assert_eq(D.size(), X.size());
 	  assert_eq(_L.size(), X.size());
@@ -90,7 +90,7 @@ namespace MATH{
 
 	}
 
-	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi,const Vec&beta, const Vec&g){
+	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi){
 
 	  assert_eq(x.size(), _L.size());
 	  assert_eq(x.size(), phi.size());
@@ -128,7 +128,7 @@ namespace MATH{
 	  return _face;
 	}
 
-	T stepLimit(const Vec& X,const Vec& D) const{
+	T stepLimit(const Vec& X,const Vec& D, const T alpha_cg=ScalarUtil<T>::scalar_max) const{
 
 	  assert_eq(D.size(), X.size());
 	  assert_eq(_L.size(), X.size());
@@ -191,7 +191,7 @@ namespace MATH{
 		  else if(abs(x[i]-H[i]) < ScalarUtil<T>::scalar_eps)
 			_face[i]=1;
 	}
-	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi,const Vec&beta, const Vec&g){
+	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi){
 
 	  assert_eq(x.size(), _L.size());
 	  assert_eq(x.size(), _H.size());
@@ -246,13 +246,13 @@ namespace MATH{
 	}
 
 	// return the largest step in direction -D.
-	T stepLimit(const Vec& X,const Vec& D) const{
+	T stepLimit(const Vec& X,const Vec& D, const T alpha_cg=ScalarUtil<T>::scalar_max) const{
 
 	  const size_t num_points = _face_indices.size();
 	  assert_eq(D.size(),num_points*3);
 	  assert_eq(D.size(), X.size());
 
-	  T alpha = ScalarUtil<T>::scalar_max;
+	  T alpha = alpha_cg+ScalarUtil<T>::scalar_eps;
 	  for (size_t i = 0; i < num_points; ++i){
 
 	  	const Vec3X di = D.block(i*3,0,3,1);
@@ -262,18 +262,21 @@ namespace MATH{
 	  	  const Vec3X nj = _planes[j].block(0,0,3,1);
 	  	  assert_in(nj.norm(),1.0f-ScalarUtil<T>::scalar_eps,1.0f+ScalarUtil<T>::scalar_eps);
 	  	  const T nd = nj.dot(di);
-	  	  // if ( fabs(nd) > ScalarUtil<T>::scalar_eps ){
-	  	  if ( nd > 0.0f ){
+	  	  if ( nd >= ScalarUtil<T>::scalar_eps){
 	  		const T alpha_ij = (nj.dot(xi)+_planes[j][3])/nd;
-	  		// if (alpha_ij > ScalarUtil<T>::scalar_eps)
 			if (alpha_ij >= 0)
 			  alpha = std::min<T>(alpha, alpha_ij);
 	  	  }
+
+		  if(dist(_planes[j],(xi-alpha_cg*di))<-ScalarUtil<double>::scalar_eps){
+			alpha = std::min<T>(alpha, alpha_cg-ScalarUtil<double>::scalar_eps);
+		  }
+
 	  	}
 	  }
+	  // assert_ext(isFeasible(_planes,(Vec)(X-alpha*D)),"alpha="<<alpha<<", alpha_cg = "<<alpha_cg<< ", alpha-alpha_cg = "<< alpha-alpha_cg);
 	  assert_ge(alpha, 0.0f);
 	  return alpha;
-
 	}
 
 	void project(const Vec& in,Vec& out) const{
@@ -308,21 +311,15 @@ namespace MATH{
 	  Vec3X temp;
 	  temp.setZero();
 	  for (int i = 0; i < in.size(); i += 3){
-
 	  	assert_eq(_face[i], _face_indices[i/3].size());
 	  	if (3 <= _face[i]){
-
 	  	  out.block(i,0,3,1).setZero();
-
 	  	}else if (2 == _face[i]){
-
 	  	  projectToPlane(_face_indices[i/3][0], in.block(i,0,3,1), temp);
 	  	  out.block(i,0,3,1) = temp;
 	  	  projectToPlane(_face_indices[i/3][1], out.block(i,0,3,1), temp);
 	  	  out.block(i,0,3,1) = temp;
-		  
 	  	}else if (1 == _face[i]){
-
 	  	  projectToPlane(_face_indices[i/3][0], in.block(i,0,3,1), temp);
 	  	  out.block(i,0,3,1) = temp;
 	  	}
@@ -376,16 +373,16 @@ namespace MATH{
 	  }
 	}
 
-	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi,const Vec&beta, const Vec&g){
+	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi){
 
 	  assert_ext(isFeasible(_planes,x),"x="<<x.transpose());
 	  assert_gt(alphaBar, ScalarUtil<T>::scalar_eps);
 	  assert_eq(x.size() % 3,0);
-	  assert_eq(x.size(), g.size());
-	  const Vec x_alpha_g = x-alphaBar*g;
+	  assert_eq(x.size(), phi.size());
+	  const Vec x_alpha_phi = x-alphaBar*phi;
 	  Vec px;
-	  project(x_alpha_g, px);
-	  const T phitphi = ((x-px)*(1.0f/alphaBar)-beta).dot(phi);
+	  project(x_alpha_phi, px);
+	  const T phitphi = ((x-px).dot(phi))*(1.0/alphaBar);
 	  assert_ge(phitphi,0);
 	  return phitphi;
 	}

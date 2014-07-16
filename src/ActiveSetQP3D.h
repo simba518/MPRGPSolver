@@ -17,7 +17,7 @@ namespace MATH{
   typedef Eigen::Matrix2d Mat2d;
   typedef vector<Vector4d,aligned_allocator<Vector4d> > VVec4d;
 
-  // the plane is defined as p[1:3].dot(y)+p=0.
+  // the plane is defined as p[0:2].dot(y)+p[3]=0.
   inline double dist(const Vec4d& p,const Vec3d& v){
 	assert_eq(v,v);
 	return v.dot(p.block<3,1>(0,0))+p[3];
@@ -29,8 +29,7 @@ namespace MATH{
 	size_t nrP=(size_t)p.size();
 	for(size_t i=0;i<nrP;i++)
 	  if(dist(p[i],v) < -ScalarUtil<double>::scalar_eps){
-		// if(dist(p[i],v) < 0){
-		cout << "dist(p,v): " << dist(p[i],v) << endl;
+		DEBUG_LOG("dist(p,v): " << dist(p[i],v));
 		return false;
 	  }
 	return true;
@@ -43,7 +42,7 @@ namespace MATH{
 	for (int i = 0; i < v.size(); i+=3){
 	  const Vec3d vi = v.segment(i,3);
 	  if (!isFeasible(p,vi)){
-		cout << "this point is infeasible: " << vi.transpose() << endl;
+		DEBUG_LOG("point "<<i/3<<" is infeasible: " << vi.transpose());
 		return false;
 	  }
 	}
@@ -67,8 +66,8 @@ namespace MATH{
 		H+=p[i].block<3,1>(0,0)*p[i].block<3,1>(0,0).transpose()*E;
 		G-=p[i].block<3,1>(0,0)*E;
 	  }
-	  if(std::abs(H.determinant()) < 1E-9f)
-		H.diagonal().array()+=1E-9f;
+	  if(std::abs(H.determinant()) < ScalarUtil<double>::scalar_eps)
+		H.diagonal().array() += ScalarUtil<double>::scalar_eps;
 	  v-=H.inverse()*G;
 
 	  double minDist=0.0f;
@@ -100,26 +99,9 @@ namespace MATH{
   //findFeasible(p,v)
   inline bool findClosestPoint(const VVec4d& p,const Vec3d& v0,Vec3d& v,Vec3i& aSet,double eps=1E-18){
 
-	// FUNC_TIMER();
-	
 	assert(isFeasible(p,v));
 	assert_eq(v,v);
 	assert_eq(v0,v0);
-
-	{// if there is only one plane...
-	  // if (1 == p.size()){
-	  // 	aSet.setConstant(-1);
-	  // 	const double alpha = dist(p[0],v0);
-	  // 	if (alpha >= eps){
-	  // 	  v = v0;
-	  // 	}else {
-	  // 	  aSet[0] = 0;
-	  // 	  v = v0-(alpha-eps)*p[0].head(3);
-	  // 	}
-	  // 	assert(isFeasible(p,v));
-	  // 	return true;
-	  // }
-	}
 
 	//rearrange
 	char nrA=0;
@@ -175,7 +157,6 @@ namespace MATH{
 		A.row(2)=p[aSet[2]].block<3,1>(0,0);
 		M3=A*A.transpose();
 		lambda=M3.llt().solve(lambda);
-		//dir=v0-A.transpose()*lambda;
 		dir.setZero();	//in that case, no dir can be allowed
 	  }
 
@@ -202,9 +183,8 @@ namespace MATH{
 		aSet[nrA-1]=-1;
 		nrA--;
 	  }else{
-		assert_le(nrA,2);
-		// ASSERT_MSG(nrA <= 2,"My God, that's impossible!")
 		//step 3: move until we are blocked
+		assert_le(nrA,2);
 		minA=-1;
 		alphaK=1.0f;
 		for(int i=0;i<nrP;i++){
@@ -234,9 +214,9 @@ namespace MATH{
 		  for(char d=0;d<nrA;d++)
 			if(minA == aSet[d]){
 			  cout << "error: " << "rounding error\n";
-			  cout<< setprecision(14) << "v0: " << v0.transpose() << endl;
-			  cout<< setprecision(14) << "v: " << v.transpose() << endl;
-			  cout<< "s: " << aSet.transpose() << endl;
+			  cout << setprecision(14) << "v0: " << v0.transpose() << endl;
+			  cout << setprecision(14) << "v: " << v.transpose() << endl;
+			  cout << "s: " << aSet.transpose() << endl;
 			  const Vec3d n = p[minA].head(3);
 			  const double b = p[minA][3];
 			  cout << "dv0: "<< n.dot(v0)+b << endl;
@@ -296,16 +276,15 @@ namespace MATH{
 	Vec3d v0 = g;
 	const double pnorm = phi.norm();
 	if ( 2 == f.size() && pnorm >= ScalarUtil<double>::scalar_eps ){
-	  // project v0 on to the plane defined by phi.
+	  // project v0on to the plane defined by phi.
 	  v0 -= v0.dot(phi)*phi*(1.0f/(pnorm*pnorm));
 	}
 
 	const bool found = findFeasible(planes,beta);
 	if(!found){
-	  cout << "error: can not found a feasible point. "<<endl;
-	  cout << "return: "<< beta.transpose() << endl;
+	  ERROR_LOG("can not found a feasible point. return: "<< beta.transpose());
 	}
-	
+
 	succ = findClosestPoint(planes,v0,beta,aSet,eps);
 	return succ;
   }

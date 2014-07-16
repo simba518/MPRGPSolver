@@ -72,8 +72,17 @@ namespace MATH{
 		assert_eq(_phi.size(), _beta.size());
 		_gp = _phi+_beta;
 		_residualOut=_gp.norm();
+
+		INFO_LOG(setprecision(10)<<"||beta||: "<<_beta.norm());
+		INFO_LOG(setprecision(10)<<"||phi||: "<<_phi.norm());
 		INFO_LOG(setprecision(10)<<"residual: "<<_residualOut);
-		if(_residualOut < _toleranceFactor){
+		INFO_LOG("phi: "<<_phi.transpose());
+		INFO_LOG("beta: "<<_beta.transpose());
+
+		// debug
+		assert(writeVTK(result, "beta_phi_g.vtk"));
+
+		if(_residualOut <= _toleranceFactor){
 		  _iterationsOut = iteration;
 		  result_code = 0;
 		  break;
@@ -83,7 +92,7 @@ namespace MATH{
 		const T beta_norm = _beta.norm();
 		assert_eq(beta_norm, beta_norm);
 		assert_eq(_g,_g);
-		if(beta_norm*beta_norm <= _Gamma*_Gamma*_projector.PHITPHI(result,_alphaBar,_phi,_beta, _g)){
+		if(beta_norm*beta_norm <= _Gamma*_Gamma*_projector.PHITPHI(result,_alphaBar,_phi)){
 
 		  //prepare conjugate gradient
 		  _A.multiply(_p,AP);
@@ -94,9 +103,14 @@ namespace MATH{
 		  assert_eq(alphaCG, alphaCG);
 		  assert_ge(alphaCG,0.0f);
 		  y = result-alphaCG*_p;
-		  alphaF = _projector.stepLimit(result,_p);
+		  alphaF = _projector.stepLimit(result,_p,alphaCG);
 		  assert_eq(alphaF, alphaF);
 		  assert_ge(alphaF,0.0f);
+
+		  DEBUG_LOG("alphaCG: "<<alphaCG);
+		  DEBUG_LOG("alphaF: "<<alphaF);
+		  DEBUG_LOG("alphaF-alphaCG: "<<alphaF-alphaCG);
+
 		  if(alphaCG <= alphaF){
 			//conjugate gradient step
 			INFO_LOG("cg step");
@@ -214,6 +228,52 @@ namespace MATH{
 	  }
 	  INFO_LOG("power iter: "<<iter);
 	  return normTmpOut;
+	}
+
+	bool writeVTK(const Vec &x, const string filename)const{
+
+	  Vec points(x.size()*4);
+	  points.head(x.size()) = x;
+	  points.segment(x.size(), x.size()) = _phi+x;
+	  points.segment(x.size()*2, x.size()) = _beta+x;
+	  points.segment(x.size()*3, x.size()) = _g+x;
+
+	  ofstream out;
+	  out.open(filename.c_str());
+	  if (!out.is_open()){
+		ERROR_LOG("failed to open this file: "<<filename);
+		return false;
+	  }
+
+	  // head
+	  out << "# vtk DataFile Version 3.1 \n";	  
+	  out << "write phi(x), beta(x) and g(x) \nASCII\nDATASET UNSTRUCTURED_GRID\n";
+
+	  // points
+	  out << "POINTS "<< points.size()/3  <<" FLOAT\n";
+	  for (int i = 0; i < points.size(); i += 3){
+		out << points[i+0] << " " << points[i+1] << " " << points[i+2] << "\n";
+	  }
+	  
+	  // lines
+	  const int xp = x.size()/3;
+	  const int num_lines = 3*xp;
+	  out << "CELLS " <<num_lines<< " "<< 3*num_lines << "\n";
+	  for (int i = 0; i < xp; i++){
+		out << 2 << " "<< i << " "<< i+xp << "\n";
+		out << 2 << " "<< i << " "<< i+2*xp << "\n";
+		out << 2 << " "<< i << " "<< i+3*xp << "\n";
+	  }
+	  
+	  out << "CELL_TYPES "<<num_lines<<"\n";
+	  for (int i = 0; i < num_lines; ++i){
+		out << 3;
+		if (i == num_lines-1) out << "\n"; else  out << " ";
+	  }
+
+	  const bool succ = out.good();
+	  out.close();
+	  return succ;
 	}
 
   protected:
