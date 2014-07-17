@@ -386,8 +386,8 @@ namespace MATH{
 	  Vec px;
 	  project(x_alpha_phi, px);
 	  const T phitphi = ((x-px).dot(phi))*(1.0/alphaBar);
-	  assert_ge(phitphi,0);
-	  return phitphi;
+	  assert_ge(phitphi,-ScalarUtil<T>::scalar_eps);
+	  return phitphi>0.0f?phitphi:0.0f;
 	}
 
   protected:

@@ -194,6 +194,9 @@ void testSolverFromFile(){
   VectorXd x;
   int rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_vp.QP",x,1e-3,100);
   assert_eq_ext(rlst_code,0,dir+"one_tet_vp.QP");
+
+  rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_vp2.QP",x,1e-3,100);
+  assert_eq_ext(rlst_code,0,dir+"one_tet_vp2.QP");
 }
 
 #endif /* _TEST_SOLVER_H_ */

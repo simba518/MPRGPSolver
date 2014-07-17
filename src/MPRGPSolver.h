@@ -28,7 +28,7 @@ namespace MATH{
 
 	  setParameters(tol,max_it);
 	  _Gamma=1.0f;
-	  _alphaBar=2.0f/specRad(_A);
+	  _alphaBar=2.0f/specRad(_A,NULL,tol);
 	  _iterationsOut = 0;
 	  _residualOut = 0.0f;
 	}
@@ -70,10 +70,10 @@ namespace MATH{
 		_projector.PHI(_g,_phi);
 		_projector.BETA(_g,_beta,_phi);
 		assert_eq(_phi.size(), _beta.size());
-		assert_le(_phi.dot(_beta),ScalarUtil<T>::scalar_eps);
 		_gp = _phi+_beta;
 		_residualOut=_gp.norm();
 
+		assert_le(_phi.dot(_beta),ScalarUtil<T>::scalar_eps*_residualOut);
 		INFO_LOG(setprecision(10)<<"||beta||: "<<_beta.norm());
 		INFO_LOG(setprecision(10)<<"||phi||: "<<_phi.norm());
 		INFO_LOG(setprecision(10)<<"residual: "<<_residualOut);
@@ -81,8 +81,8 @@ namespace MATH{
 		INFO_LOG("beta: "<<_beta.transpose());
 
 		// debug
-		// assert(writeVTK(result, "beta_phi_g.vtk"));
-		// assert(printFace());
+		assert(writeVTK(result, "beta_phi_g.vtk"));
+		assert(printFace());
 
 		if(_residualOut <= _toleranceFactor){
 		  _iterationsOut = iteration;
@@ -123,9 +123,9 @@ namespace MATH{
 
 			assert_eq(_g,_g);
 			_projector.PHI(_g, _phi);
-			assert_ge(_g.dot(_phi),0.0);
+			assert_ge(_g.dot(_phi),-ScalarUtil<T>::scalar_eps);
 			_precond.solve(_phi,_z);
-			assert_ge(_g.dot(_z),0.0);
+			assert_ge(_g.dot(_z),-ScalarUtil<T>::scalar_eps);
 			beta = (_z.dot(AP)) / (_p.dot(AP));
 			_p = _z-beta*_p;
 			assert_eq(_p,_p);
@@ -165,6 +165,11 @@ namespace MATH{
 		  assert_ne(ddad,0);
 		  alphaCG = (_g.dot(D)) / ddad;
 		  result -= alphaCG*D;
+
+		  // @note we need to project result when 3D plane constraints are used.
+		  xTmp = result;
+		  _projector.project(xTmp,result);
+
 		  _g -= alphaCG*AD;
 		  _projector.DECIDE_FACE(result);
 
@@ -236,9 +241,9 @@ namespace MATH{
 
 	  Vec points(x.size()*4);
 	  points.head(x.size()) = x;
-	  points.segment(x.size(), x.size()) = _phi*0+x;
+	  points.segment(x.size(), x.size()) = _phi+x;
 	  points.segment(x.size()*2, x.size()) = _beta+x;
-	  points.segment(x.size()*3, x.size()) = _g*0+x;
+	  points.segment(x.size()*3, x.size()) = _g+x;
 
 	  ofstream out;
 	  out.open(filename.c_str());
