@@ -74,6 +74,7 @@ namespace MATH{
 		_residualOut=_gp.norm();
 
 		assert_le(_phi.dot(_beta),ScalarUtil<T>::scalar_eps*_residualOut);
+		DEBUG_LOG(setprecision(10)<<"||g||: "<<_g.norm());
 		DEBUG_LOG(setprecision(10)<<"||beta||: "<<_beta.norm());
 		DEBUG_LOG(setprecision(10)<<"||phi||: "<<_phi.norm());
 		DEBUG_LOG(setprecision(10)<<"residual: "<<_residualOut);
@@ -81,8 +82,8 @@ namespace MATH{
 		DEBUG_LOG("beta: "<<_beta.transpose());
 
 		// debug
-		// assert(writeVTK(result, "beta_phi_g.vtk"));
-		// assert(printFace());
+		DEBUG_FUN(assert(writeVTK(result, "beta_phi_g.vtk")));
+		DEBUG_FUN(assert(printFace()));
 
 		if(_residualOut <= _toleranceFactor){
 		  _iterationsOut = iteration;
@@ -225,7 +226,7 @@ namespace MATH{
 		}
 		tmpOut/=normTmpOut;
 		delta=(tmpOut-tmp).norm();
-		INFO_LOG(setprecision(10)<<"power delta: "<<delta);
+		DEBUG_LOG(setprecision(10)<<"power delta: "<<delta);
 		// printf("Power Iter %d Err: %f, SpecRad: %f\n",iter,delta,normTmpOut);
 		if(delta <= eps){
 		  if(ev)*ev=tmp;
