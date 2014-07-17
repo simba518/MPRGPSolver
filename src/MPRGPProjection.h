@@ -283,17 +283,14 @@ namespace MATH{
 
 	  const size_t num_points = _face_indices.size();
 	  assert_eq(in.size(),num_points*3);
+	  assert_ge(in.size(),3);
 	  out.resize( in.size() );
 	  
-	  Vec3X v;
-	  Vector3i aSet;
-	  v.setZero();
+	  Vec3X v = in.block(0,0,3,1);
 	  const bool found = findFeasible(_planes,v);
-	  if(!found){
-		cout << "error: can not found a feasible point.\n";
-		cout << "return: "<< v.transpose() << endl;
-	  }
-
+	  assert(found);
+	  Vector3i aSet;
+	  
 	  for (int i = 0; i < in.size(); i += 3){
 	  	aSet.setConstant(-1);
 	  	const bool found = findClosestPoint( _planes, in.block(i,0,3,1), v, aSet);

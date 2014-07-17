@@ -53,8 +53,9 @@ namespace MATH{
 
 	v.setZero();
 	assert_eq(v,v);
-	size_t nrP=(size_t)p.size();
+	const size_t nrP=(size_t)p.size();
 	std::vector<double> weight(nrP,1.0f);
+
 	for(size_t iter=0;iter<100*nrP;iter++){
 
 	  Mat3d H=Mat3d::Zero();
@@ -66,14 +67,17 @@ namespace MATH{
 		H+=p[i].block<3,1>(0,0)*p[i].block<3,1>(0,0).transpose()*E;
 		G-=p[i].block<3,1>(0,0)*E;
 	  }
+
 	  if(std::abs(H.determinant()) < ScalarUtil<double>::scalar_eps)
 		H.diagonal().array() += ScalarUtil<double>::scalar_eps;
+
 	  v-=H.inverse()*G;
+	  assert_eq(G,G);
+	  assert_eq_ext(v,v,"H: "<<H<<"\nG^t: "<<G.transpose());
 
 	  double minDist=0.0f;
 	  size_t minId=-1;
 	  for(size_t i=0;i<nrP;i++){
-		assert_eq(v,v);
 		double currDist=dist(p[i],v);
 		if(currDist < minDist){
 		  minDist=currDist;
@@ -210,18 +214,15 @@ namespace MATH{
 		v+=alphaK*dir;
 
 		if(minA >= 0){
-		  //already in active set, so this is rounding error
+		  // already in active set, so this is rounding error
+		  // @bug should return false? why there is rounding error?
 		  for(char d=0;d<nrA;d++)
 			if(minA == aSet[d]){
-			  cout << "error: " << "rounding error\n";
-			  cout << setprecision(14) << "v0: " << v0.transpose() << endl;
-			  cout << setprecision(14) << "v: " << v.transpose() << endl;
-			  cout << "s: " << aSet.transpose() << endl;
-			  const Vec3d n = p[minA].head(3);
-			  const double b = p[minA][3];
-			  cout << "dv0: "<< n.dot(v0)+b << endl;
-			  cout << "dv: "<< n.dot(v)+b << endl;
-			  return false;
+			  ERROR_LOG("rounding error\n"<<setprecision(14)
+						<<"\nv0: "<< v0.transpose() <<"\nv: " << v.transpose()
+						<< "\ndist(v0): " << dist(p[minA],v0) << "\ndist(v): " << dist(p[minA],v)
+						<<"\nset: "<< aSet.transpose()<< "\nminA: "<< minA	);
+			  return true;
 			}
 		  //expand active set
 		  aTag[minA]=true;
@@ -230,20 +231,9 @@ namespace MATH{
 	  }
 	}
 
-	cout<<"error: not convergent for "<<max_it<<" iterations in finding closest point."<<endl;
-	cout<< setprecision(14) << "v0: " << v0.transpose() << endl;
-	cout<< setprecision(14) << "v: " << v.transpose() << endl;
-	cout<< "s: " << aSet.transpose() << endl;
-	cout<< "minA: " << minA << endl;
-	if (minA >= 0){
-	  const Vec3d n = p[minA].head(3);
-	  const double b = p[minA][3];
-	  cout << "dv0: "<< n.dot(v0)+b << endl;
-	  cout << "dv: "<< n.dot(v)+b << endl;
-	}
-
-	for (int k = nrA; k < 3; ++k)
-	  aSet[k] = -1;
+	ERROR_LOG("not convergent after "<< max_it<< " iterations."
+			  <<"\nv0: "<< v0.transpose() <<"\nv: " << v.transpose()
+			  <<"\nset: "<< aSet.transpose()<< "\nminA: "<< minA	);
 	return false;
   }
 
@@ -281,10 +271,7 @@ namespace MATH{
 	}
 
 	const bool found = findFeasible(planes,beta);
-	if(!found){
-	  ERROR_LOG("can not found a feasible point. return: "<< beta.transpose());
-	}
-
+	assert(found);
 	succ = findClosestPoint(planes,v0,beta,aSet,eps);
 	return succ;
   }

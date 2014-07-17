@@ -197,6 +197,12 @@ void testSolverFromFile(){
 
   rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_vp2.QP",x,1e-3,100);
   assert_eq_ext(rlst_code,0,dir+"one_tet_vp2.QP");
+
+  rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_cone10.QP",x,1e-4,100);
+  assert_eq_ext(rlst_code,0,dir+"one_tet_cone10.QP");
+
+  rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_ball.QP",x,1e-4,100);
+  assert_eq_ext(rlst_code,0,dir+"one_tet_ball.QP");
 }
 
 #endif /* _TEST_SOLVER_H_ */

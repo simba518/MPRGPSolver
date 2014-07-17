@@ -74,15 +74,15 @@ namespace MATH{
 		_residualOut=_gp.norm();
 
 		assert_le(_phi.dot(_beta),ScalarUtil<T>::scalar_eps*_residualOut);
-		INFO_LOG(setprecision(10)<<"||beta||: "<<_beta.norm());
-		INFO_LOG(setprecision(10)<<"||phi||: "<<_phi.norm());
-		INFO_LOG(setprecision(10)<<"residual: "<<_residualOut);
-		INFO_LOG("phi: "<<_phi.transpose());
-		INFO_LOG("beta: "<<_beta.transpose());
+		DEBUG_LOG(setprecision(10)<<"||beta||: "<<_beta.norm());
+		DEBUG_LOG(setprecision(10)<<"||phi||: "<<_phi.norm());
+		DEBUG_LOG(setprecision(10)<<"residual: "<<_residualOut);
+		DEBUG_LOG("phi: "<<_phi.transpose());
+		DEBUG_LOG("beta: "<<_beta.transpose());
 
 		// debug
-		assert(writeVTK(result, "beta_phi_g.vtk"));
-		assert(printFace());
+		// assert(writeVTK(result, "beta_phi_g.vtk"));
+		// assert(printFace());
 
 		if(_residualOut <= _toleranceFactor){
 		  _iterationsOut = iteration;
@@ -115,7 +115,7 @@ namespace MATH{
 
 		  if(alphaCG <= alphaF){
 			//conjugate gradient step
-			INFO_LOG("cg step");
+			DEBUG_LOG("cg step");
 			num_cg ++;
 			assert_ge(alphaCG,0.0f);
 			result = y;
@@ -132,7 +132,7 @@ namespace MATH{
 
 		  }else{
 			//expansion step
-			INFO_LOG("exp step");
+			DEBUG_LOG("exp step");
 			num_exp ++;
 			xTmp = result-alphaF*_p;
 			_g -= alphaF*AP;
@@ -155,7 +155,7 @@ namespace MATH{
 		  }
 		}else{
 		  //proportioning
-		  INFO_LOG("prop step");
+		  DEBUG_LOG("prop step");
 		  num_prop ++;
 		  assert_gt(beta_norm,0);
 		  D = _beta;
