@@ -41,7 +41,6 @@ namespace MATH{
 	  T alphaCG,alphaF,beta;
 	  Vec& AP=_gp;
 	  Vec& AD=_gp;
-	  Vec& y=_beta;	
 	  Vec& xTmp=_beta;
 	  Vec& D=_phi;
 
@@ -82,8 +81,8 @@ namespace MATH{
 		DEBUG_LOG("beta: "<<_beta.transpose());
 
 		// debug
-		DEBUG_FUN(assert(writeVTK(result, "beta_phi_g.vtk")));
-		DEBUG_FUN(assert(printFace()));
+		// DEBUG_FUN(assert(writeVTK(result, "beta_phi_g.vtk")));
+		// DEBUG_FUN(assert(printFace()));
 
 		if(_residualOut <= _toleranceFactor){
 		  _iterationsOut = iteration;
@@ -105,7 +104,6 @@ namespace MATH{
 		  alphaCG = (_z.dot(_g)) / pd;
 		  assert_eq(alphaCG, alphaCG);
 		  assert_ge(alphaCG,0.0f);
-		  y = result-alphaCG*_p;
 		  alphaF = _projector.stepLimit(result,_p,alphaCG);
 		  assert_eq(alphaF, alphaF);
 		  assert_ge(alphaF,0.0f);
@@ -119,7 +117,7 @@ namespace MATH{
 			DEBUG_LOG("cg step");
 			num_cg ++;
 			assert_ge(alphaCG,0.0f);
-			result = y;
+			result = result-alphaCG*_p;
 			_g -= alphaCG*AP;
 
 			assert_eq(_g,_g);
