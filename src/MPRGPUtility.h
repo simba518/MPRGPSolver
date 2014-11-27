@@ -48,6 +48,7 @@
 #include <iostream>
 #include <fstream>
 #include <omp.h>
+#include <iomanip>
 using namespace std;
 
 #ifdef _MSC_VER

@@ -305,7 +305,6 @@ namespace MATH{
 	PROJECTOIN &_projector;
 	
 	//temporary
-	vector<char> _face;
 	Vec _g,_p,_z,_beta,_phi,_gp;
 	size_t _iterationsOut;
 	T _residualOut;
