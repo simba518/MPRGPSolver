@@ -58,10 +58,14 @@ void test_LowerBoundProjector(){
 void test_PlaneProjector(){
   
   cout << "test projector for xi*nj >= bj\n";
+  typedef Eigen::Matrix<double,4,1> Vec4X;
+  typedef vector<Vec4X,Eigen::aligned_allocator<Vec4X> > VVec4X;
+  typedef vector<VVec4X > VVVec4X;
 
   // initialize
   VectorXd x(2*3), y(2*3);
-  vector<Vector4d,aligned_allocator<Vector4d> > planes;
+  VVec4X planes;
+  VVVec4X planes_for_each_node;
   {
 	
 	Vector4d p;
@@ -82,7 +86,8 @@ void test_PlaneProjector(){
 	planes.push_back(p);
   }
 
-  PlaneProjector<double> P(planes,x.size());
+  PlaneProjector<double>::convert(planes, planes_for_each_node, x.size()/3);
+  PlaneProjector<double> P(planes_for_each_node);
   assert_eq(P.getFace().size(),x.size());
   for (int i = 0; i < P.getFace().size(); ++i)
     assert_eq(P.getFace()[i],0);
@@ -210,8 +215,14 @@ void test_OnePlaneProjector(){
   cout << "test projector for xi*nj >= bj\n";
 
   // initialize
+  typedef Eigen::Matrix<double,4,1> Vec4X;
+  typedef vector<Vec4X,Eigen::aligned_allocator<Vec4X> > VVec4X;
+  typedef vector<VVec4X > VVVec4X;
+
+  // initialize
   VectorXd x(3);
-  vector<Vector4d,aligned_allocator<Vector4d> > planes;
+  VVec4X planes;
+  VVVec4X planes_for_each_node;
   {
 	Vector4d p;
 	p << 1,1,0,sqrt(2.0)*0.5f;
@@ -219,7 +230,9 @@ void test_OnePlaneProjector(){
 	planes.push_back(p);
   }
 
-  PlaneProjector<double> P(planes,x.size());
+  
+  PlaneProjector<double>::convert(planes, planes_for_each_node, x.size()/3);
+  PlaneProjector<double> P(planes_for_each_node);
   assert_eq(P.getFace().size(),x.size());
   for (int i = 0; i < P.getFace().size(); ++i)
     assert_eq(P.getFace()[i],0);

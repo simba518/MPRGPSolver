@@ -226,19 +226,24 @@ namespace MATH{
 	typedef Eigen::Matrix<T,4,1> Vec4X;
 	typedef Eigen::Matrix<T,3,1> Vec3X;
 	typedef vector<Vec4X,Eigen::aligned_allocator<Vec4X> > VVec4X;
+	typedef vector<VVec4X > VVVec4X;
 
   public:
-    PlaneProjector(const VVec4X &planes, const size_t x_size):_planes(planes){
+    PlaneProjector(const VVVec4X &planes_for_each_node):_planes(planes_for_each_node){
+	  updateConstraints();
+	}
 
-	  assert_ge(x_size,0);
-	  assert_eq(x_size%3,0);
-
+	void updateConstraints(){
+	  
+	  const size_t x_size = _planes.size()*3;
 	  _face.resize(x_size);
 	  _face.assign(x_size,0);
 
 	  _face_indices.resize(x_size/3);
-	  for (int i = 0; i < _face_indices.size(); ++i)
+	  for (int i = 0; i < _face_indices.size(); ++i){
+		_face_indices[i].clear();
 		_face_indices[i].reserve(3);
+	  }
 	}
 
 	const vector<char> &getFace()const{
@@ -257,24 +262,24 @@ namespace MATH{
 
 	  	const Vec3X di = D.block(i*3,0,3,1);
 	  	const Vec3X xi = X.block(i*3,0,3,1);
-	  	for (size_t j = 0; j < _planes.size(); ++j){
+		const VVec4X &p = _planes[i];
+	  	for (size_t j = 0; j < p.size(); ++j){
 
-	  	  const Vec3X nj = _planes[j].block(0,0,3,1);
+	  	  const Vec3X nj = p[j].block(0,0,3,1);
 	  	  assert_in(nj.norm(),1.0f-ScalarUtil<T>::scalar_eps,1.0f+ScalarUtil<T>::scalar_eps);
 	  	  const T nd = nj.dot(di);
 	  	  if ( nd >= ScalarUtil<T>::scalar_eps){
-	  		const T alpha_ij = (nj.dot(xi)+_planes[j][3])/nd;
+	  		const T alpha_ij = (nj.dot(xi)+p[j][3])/nd;
 			if (alpha_ij >= 0)
 			  alpha = std::min<T>(alpha, alpha_ij);
 	  	  }
 
-		  if(dist(_planes[j],(xi-alpha_cg*di))<-ScalarUtil<double>::scalar_eps){
+		  if(dist(p[j],(xi-alpha_cg*di))<-ScalarUtil<double>::scalar_eps){
 			alpha = std::min<T>(alpha, alpha_cg-ScalarUtil<double>::scalar_eps);
 		  }
 
 	  	}
 	  }
-	  // assert_ext(isFeasible(_planes,(Vec)(X-alpha*D)),"alpha="<<alpha<<", alpha_cg = "<<alpha_cg<< ", alpha-alpha_cg = "<< alpha-alpha_cg);
 	  assert_ge(alpha, 0.0f);
 	  return alpha;
 	}
@@ -285,15 +290,15 @@ namespace MATH{
 	  assert_eq(in.size(),num_points*3);
 	  assert_ge(in.size(),3);
 	  out.resize( in.size() );
-	  
 	  Vec3X v = in.block(0,0,3,1);
-	  const bool found = findFeasible(_planes,v);
-	  assert(found);
 	  Vector3i aSet;
 	  
 	  for (int i = 0; i < in.size(); i += 3){
+
 	  	aSet.setConstant(-1);
-	  	const bool found = findClosestPoint( _planes, in.block(i,0,3,1), v, aSet);
+		bool found = findFeasible(_planes[i/3],v);
+		assert(found);
+	  	found = findClosestPoint( _planes[i/3], in.block(i,0,3,1), v, aSet);
 		assert(found);
 	  	out.block(i,0,3,1) = v;
 	  }
@@ -315,12 +320,13 @@ namespace MATH{
 		  const int f0 = _face_indices[i/3][0];
 		  const int f1 = _face_indices[i/3][1];
 		  assert_ne(f0,f1);
-		  const Vec3X n0 = _planes[f0].block(0,0,3,1);
-		  const Vec3X n1 = _planes[f1].block(0,0,3,1);
+		  const Vec3X n0 = _planes[i/3][f0].block(0,0,3,1);
+		  const Vec3X n1 = _planes[i/3][f1].block(0,0,3,1);
 		  const Vec3X n = n0.cross(n1);
 		  out.block(i,0,3,1) = in.block(i,0,3,1).dot(n)*n;
 	  	}else if (1 == _face[i]){
-	  	  projectToPlane(_face_indices[i/3][0], in.block(i,0,3,1), temp);
+		  const Vec4X &p = _planes[i/3][_face_indices[i/3][0]];
+	  	  projectToPlane(p, in.block(i,0,3,1), temp);
 	  	  out.block(i,0,3,1) = temp;
 	  	}
 	  }
@@ -340,12 +346,12 @@ namespace MATH{
 
 	  	assert_eq(_face[i], _face_indices[i/3].size());
 	  	if (1 == _face[i]){
-	  	  const Vec3X n = _planes[_face_indices[i/3][0]].block(0,0,3,1);
+	  	  const Vec3X n = _planes[i/3][_face_indices[i/3][0]].block(0,0,3,1);
 	  	  const T t = in.block(i,0,3,1).dot(n);
 	  	  if (t < 0)
 	  		out.block(i,0,3,1) = t*n;
 	  	}else if (_face[i]>=2){
-	  	  const bool found = findClosestPoint( _planes, _face_indices[i/3], in.block(i,0,3,1), phi.block(i,0,3,1), temp );
+	  	  const bool found = findClosestPoint( _planes[i/3], _face_indices[i/3], in.block(i,0,3,1), phi.block(i,0,3,1), temp );
 	  	  assert(found);
 	  	  out.block(i,0,3,1) = temp;
 	  	}
@@ -361,8 +367,8 @@ namespace MATH{
 	  for (int i = 0; i < num_points; i++ ){
 	  	_face_indices[i].clear();
 		Vec3X xi = x.block(i*3,0,3,1);
-	  	for (int f = 0; f < _planes.size(); ++f){
-		  const T d = dist(_planes[f],xi);
+	  	for (int f = 0; f < _planes[i].size(); ++f){
+		  const T d = dist(_planes[i][f],xi);
 	  	  if ( fabs(d) < ScalarUtil<T>::scalar_eps ){
 	  		_face_indices[i].push_back(f);
 		  }
@@ -387,22 +393,27 @@ namespace MATH{
 	  return phitphi>0.0f?phitphi:0.0f;
 	}
 
-  protected:
-	void projectToPlane(const int plane_index, const Vec3X &in, Vec3X &out){
+	static VVVec4X &convert(const VVec4X &in, VVVec4X &out, const size_t num_nodes){
+	  	 
+	  out.resize(num_nodes);
+	  for(size_t i = 0; i < num_nodes; i++)
+		out[i] = in;
+	  return out;
+	}
 
-	  assert_in(plane_index, 0 ,_planes.size()-1);
-	  const Vec3X n = _planes[plane_index].block(0,0,3,1);
-	  DEBUG_LOG("n"<<plane_index<<": "<<n.transpose());
+  protected:
+	void projectToPlane(const Vec4X &p, const Vec3X &in, Vec3X &out)const{
+
+	  const Vec3X n = p.block(0,0,3,1);
 	  assert_in(n.norm(),1.0f-ScalarUtil<T>::scalar_eps,1.0f+ScalarUtil<T>::scalar_eps);
 	  out = in-in.dot(n)*n;
 	}
 	
   private:
-	const VVec4X &_planes;
+	const VVVec4X &_planes;
 	vector<char> _face;
 	vector<vector<int> > _face_indices;
   };
-  
 
 }//end of namespace
 

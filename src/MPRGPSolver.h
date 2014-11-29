@@ -94,6 +94,7 @@ namespace MATH{
 		const T beta_norm = _beta.norm();
 		assert_eq(beta_norm, beta_norm);
 		assert_eq(_g,_g);
+
 		if(beta_norm*beta_norm <= _Gamma*_Gamma*_projector.PHITPHI(result,_alphaBar,_phi)){
 
 		  //prepare conjugate gradient
@@ -398,18 +399,27 @@ namespace MATH{
 	typedef Eigen::Matrix<T,-1,1> Vec;
 	typedef Eigen::Matrix<T,4,1> Vec4X;
 	typedef vector<Vec4X,Eigen::aligned_allocator<Vec4X> > VVec4X;
+	typedef vector<VVec4X > VVVec4X;
 	
   public:
 	template <typename MAT>
-	static int solve(const MAT &A,const Vec &B, const VVec4X &planes, Vec &x, const T tol=1e-3, const int max_it = 1000){
+	static int solve(const MAT &A,const Vec &B, const VVVec4X &planes_for_each_node, Vec &x, const T tol=1e-3, const int max_it = 1000){
 
 	  assert_eq(A.rows(),B.size());
 	  assert_eq(A.rows(),x.size());
-	  PlaneProjector<T> projector(planes,x.size());
+	  PlaneProjector<T> projector(planes_for_each_node);
 	  DiagonalInFacePreconSolver<T,MAT> precond(A, projector.getFace());
 	  MPRGP<T, MAT, PlaneProjector<T>, DiagonalInFacePreconSolver<T,MAT> > solver(A, B, precond, projector, max_it, tol);
 	  const int rlst_code = solver.solve(x);
 	  return rlst_code;
+	}
+
+	template <typename MAT>
+	static int solve(const MAT &A,const Vec &B, const VVec4X &planes, Vec &x, const T tol=1e-3, const int max_it = 1000){
+
+	  VVVec4X planes_for_each_node;
+	  PlaneProjector<T>::convert(planes, planes_for_each_node, x.size()/3);
+	  return solve(A,B,planes_for_each_node, x, tol, max_it);
 	}
 
 	// load the problem from file, then solve it.

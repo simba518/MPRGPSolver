@@ -16,6 +16,7 @@ namespace MATH{
   typedef Eigen::Matrix3d Mat3d;
   typedef Eigen::Matrix2d Mat2d;
   typedef vector<Vector4d,aligned_allocator<Vector4d> > VVec4d;
+  typedef vector<VVec4d > VVVec4d;
 
   // the plane is defined as p[0:2].dot(y)+p[3]=0.
   inline double dist(const Vec4d& p,const Vec3d& v){
@@ -35,13 +36,13 @@ namespace MATH{
 	return true;
   }
 
-  inline bool isFeasible(const VVec4d& p,const VectorXd& v){
+  inline bool isFeasible(const VVVec4d& planes_for_all_nodes,const VectorXd& v){
 
 	assert_eq(v,v);
 	assert_eq(v.size()%3,0);
 	for (int i = 0; i < v.size(); i+=3){
 	  const Vec3d vi = v.segment(i,3);
-	  if (!isFeasible(p,vi)){
+	  if (!isFeasible(planes_for_all_nodes[i/3],vi)){
 		DEBUG_LOG("point "<<i/3<<" is infeasible: " << vi.transpose());
 		return false;
 	  }
