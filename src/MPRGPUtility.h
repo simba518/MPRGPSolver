@@ -59,7 +59,8 @@ using namespace std;
 #define PRAGMA _Pragma
 #endif
 
-#define OMP_PARALLEL_FOR_ PRAGMA(STRINGIFY(omp parallel for num_threads(OmpSettings::getOmpSettings().nrThreads()) schedule(dynamic,OmpSettings::getOmpSettings().szChunk())))
+// #define OMP_PARALLEL_FOR_ PRAGMA(STRINGIFY(omp parallel for num_threads(OmpSettings::getOmpSettings().nrThreads()) schedule(dynamic,OmpSettings::getOmpSettings().szChunk())))
+#define OMP_PARALLEL_FOR_
 #define OMP_CRITICAL_ PRAGMA(STRINGIFY(omp critical))
 
 namespace MATH{

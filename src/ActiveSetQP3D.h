@@ -64,7 +64,9 @@ namespace MATH{
 	  for(size_t i=0;i<nrP;i++){
 
 		assert_eq(v,v);
+		assert_eq(p[i],p[i]);
 		double E=weight[i]*std::exp(-dist(p[i],v));
+		assert_eq(E,E);
 		H+=p[i].block<3,1>(0,0)*p[i].block<3,1>(0,0).transpose()*E;
 		G-=p[i].block<3,1>(0,0)*E;
 	  }
@@ -73,8 +75,8 @@ namespace MATH{
 		H.diagonal().array() += ScalarUtil<double>::scalar_eps;
 
 	  v-=H.inverse()*G;
-	  assert_eq(G,G);
-	  assert_eq_ext(v,v,"H: "<<H<<"\nG^t: "<<G.transpose());
+	  assert_eq_ext(G,G,"H:" << H);
+	  assert_eq_ext(v,v,"H: "<< H <<"\nG^t: "<<G.transpose());
 
 	  double minDist=0.0f;
 	  size_t minId=-1;
