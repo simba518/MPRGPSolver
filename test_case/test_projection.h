@@ -87,7 +87,8 @@ void test_PlaneProjector(){
   }
 
   PlaneProjector<double>::convert(planes, planes_for_each_node, x.size()/3);
-  PlaneProjector<double> P(planes_for_each_node);
+  assert(findFeasible(planes_for_each_node, x));
+  PlaneProjector<double> P(planes_for_each_node, x);
   assert_eq(P.getFace().size(),x.size());
   for (int i = 0; i < P.getFace().size(); ++i)
     assert_eq(P.getFace()[i],0);
@@ -232,7 +233,8 @@ void test_OnePlaneProjector(){
 
   
   PlaneProjector<double>::convert(planes, planes_for_each_node, x.size()/3);
-  PlaneProjector<double> P(planes_for_each_node);
+  assert(findFeasible(planes_for_each_node, x));
+  PlaneProjector<double> P(planes_for_each_node, x);
   assert_eq(P.getFace().size(),x.size());
   for (int i = 0; i < P.getFace().size(); ++i)
     assert_eq(P.getFace()[i],0);

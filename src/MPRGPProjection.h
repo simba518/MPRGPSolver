@@ -229,8 +229,12 @@ namespace MATH{
 	typedef vector<VVec4X > VVVec4X;
 
   public:
-    PlaneProjector(const VVVec4X &planes_for_each_node):_planes(planes_for_each_node){
+    PlaneProjector(const VVVec4X &planes_for_each_node, const Vec &feasible_x):
+	  _planes(planes_for_each_node), feasible_x(feasible_x){
+
+	  assert_eq(_planes.size()*3, feasible_x.size());
 	  updateConstraints();
+	  assert_ext(isFeasible(_planes,feasible_x),"x = "<<feasible_x.transpose());
 	}
 
 	void updateConstraints(){
@@ -296,9 +300,8 @@ namespace MATH{
 	  for (int i = 0; i < in.size(); i += 3){
 
 	  	aSet.setConstant(-1);
-		bool found = findFeasible(_planes[i/3],v);
-		assert(found);
-	  	found = findClosestPoint( _planes[i/3], in.block(i,0,3,1), v, aSet);
+		findFeasible(_planes[i/3], feasible_x, i/3, v);
+		bool found = findClosestPoint( _planes[i/3], in.block(i,0,3,1), v, aSet );
 		assert(found);
 	  	out.block(i,0,3,1) = v;
 	  }
@@ -411,6 +414,7 @@ namespace MATH{
 	
   private:
 	const VVVec4X &_planes;
+	const Vec feasible_x;
 	vector<char> _face;
 	vector<vector<int> > _face_indices;
   };

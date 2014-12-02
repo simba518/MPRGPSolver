@@ -407,7 +407,7 @@ namespace MATH{
 
 	  assert_eq(A.rows(),B.size());
 	  assert_eq(A.rows(),x.size());
-	  PlaneProjector<T> projector(planes_for_each_node);
+	  PlaneProjector<T> projector(planes_for_each_node, x);
 	  DiagonalInFacePreconSolver<T,MAT> precond(A, projector.getFace());
 	  MPRGP<T, MAT, PlaneProjector<T>, DiagonalInFacePreconSolver<T,MAT> > solver(A, B, precond, projector, max_it, tol);
 	  const int rlst_code = solver.solve(x);

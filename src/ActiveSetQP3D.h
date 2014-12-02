@@ -50,6 +50,14 @@ namespace MATH{
 	return true;
   }
 
+  inline void findFeasible(const VVec4d&p,const VectorXd &feasible_x,const size_t v_id,Vec3d&v){
+
+	if( !isFeasible(p,v) ){
+	  v = feasible_x.block<3,1>(v_id*3,0);
+	  assert( isFeasible(p,v) );
+	}
+  }
+
   inline bool findFeasible(const VVec4d& p,Vec3d& v){
 
 	v.setZero();
@@ -65,7 +73,7 @@ namespace MATH{
 
 		assert_eq(v,v);
 		assert_eq(p[i],p[i]);
-		double E=weight[i]*std::exp(-dist(p[i],v));
+		const double E=weight[i]*std::exp(-dist(p[i],v));
 		assert_eq(E,E);
 		H+=p[i].block<3,1>(0,0)*p[i].block<3,1>(0,0).transpose()*E;
 		G-=p[i].block<3,1>(0,0)*E;
@@ -76,7 +84,7 @@ namespace MATH{
 
 	  v-=H.inverse()*G;
 	  assert_eq_ext(G,G,"H:" << H);
-	  assert_eq_ext(v,v,"H: "<< H <<"\nG^t: "<<G.transpose());
+	  assert_eq_ext(v,v,"H: "<< H <<"\nG^t: "<<G.transpose()<<"\nplane:"<<p[0].transpose()<<"\nplane.size()="<<nrP);
 
 	  double minDist=0.0f;
 	  size_t minId=-1;
@@ -92,6 +100,20 @@ namespace MATH{
 	}
 	assert_eq(v,v);
 	return isFeasible(p,v);
+  }
+
+  inline bool findFeasible(const VVVec4d& planes_for_all_nodes,VectorXd& x){
+	
+	bool found = true;
+	Vec3d v;
+	const int n = planes_for_all_nodes.size();
+	x.resize(n*3);
+	for(int i = 0; i < n && found; i ++){
+	  found = findFeasible(planes_for_all_nodes[i], v);
+	  if(found)
+		x.segment<3>(i*3) = v;
+	}
+	return found;
   }
 
   //solving the distance QP problem in 3D, the formulation is:
@@ -250,14 +272,15 @@ namespace MATH{
   //           beta*phi=0.
   // 
   // The special case where phi=0 should be taken carefully.
-  inline bool findClosestPoint(const VVec4d& p,const vector<int>&f,const Vec3d&g,const Vec3d& phi,Vec3d& beta,double eps=1E-18){
+  inline bool findClosestPoint(const VVec4d& p,const vector<int>&f,const Vec3d&g, 
+							   const Vec3d& phi, Vec3d& beta,double eps=1E-18){
 
 	bool succ = false;
 	assert_ge(f.size(),2);
 
 	Vec3i aSet;
 	aSet.setConstant(-1);
-	vector<Vector4d,aligned_allocator<Vector4d> > planes;
+	VVec4d planes;
 	planes.reserve(f.size());
 	for (int i = 0; i < f.size(); ++i){
 	  assert_in(f[i],0,p.size()-1);
