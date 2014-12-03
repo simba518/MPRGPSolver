@@ -87,7 +87,7 @@ namespace MATH{
 	  assert_eq_ext(v,v,"H: "<< H <<"\nG^t: "<<G.transpose()<<"\nplane:"<<p[0].transpose()<<"\nplane.size()="<<nrP);
 
 	  double minDist=0.0f;
-	  size_t minId=-1;
+	  int minId = -1;
 	  for(size_t i=0;i<nrP;i++){
 		double currDist=dist(p[i],v);
 		if(currDist < minDist){

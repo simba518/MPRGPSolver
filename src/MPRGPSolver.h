@@ -397,6 +397,7 @@ namespace MATH{
   class MPRGPPlane{
 
 	typedef Eigen::Matrix<T,-1,1> Vec;
+	typedef Eigen::Matrix<T,3,1> Vec3X;
 	typedef Eigen::Matrix<T,4,1> Vec4X;
 	typedef vector<Vec4X,Eigen::aligned_allocator<Vec4X> > VVec4X;
 	typedef vector<VVec4X > VVVec4X;
@@ -442,6 +443,83 @@ namespace MATH{
 		code = solve(FixedSparseMatrix<double>(A),B,planes,x,tol,max_it);
 	  }
 	  return code;
+	}
+
+	// compute the lagragian multipliers.
+	static void computeLagMultipliers(const Vec &g, const VVVec4X &planes_for_each_node, 
+									  const std::vector<std::vector<int> > &face_indices,
+									  std::vector<std::vector<T> > &all_lambdas){
+	  
+	  const int num_verts = face_indices.size();
+	  assert_eq(g.size(), num_verts*3);
+	  all_lambdas.resize(num_verts);
+	  for(int i = 0; i < num_verts; i++){
+		const Vec3X gi = gi.segment<3>(i*3);
+		computeLambdas(gi, planes_for_each_node[i], face_indices[i], all_lambdas[i]);
+	  }
+	}
+
+	static void computeLagMultipliers(const Vec3X &gi, const VVec4X &planes,
+									  const std::vector<int> &face_i,
+									  std::vector<T> &lambdas){
+	  
+	  lambdas.resize(planes.size());
+	  for (size_t i = 0; i < lambdas.size(); ++i){
+		lambdas[i] = (T)0.0f;
+	  }
+
+	  if(face_i.size() == 1){
+
+		const int p = face_i[0];
+		assert_in(p, 0, (int)planes.size()-1);
+		lambdas[p] = gi.dot(planes[p].segment<3>(0));
+		assert_ge(lambdas[p],0.0f);
+
+	  }else if(face_i.size() == 2){
+
+		const int p0 = face_i[0];
+		const int p1 = face_i[1];
+		assert_in(p0, 0, (int)planes.size()-1);
+		assert_in(p1, 0, (int)planes.size()-1);
+
+		Matrix<T, 3,2> N;
+		N.block<3,1>(0,0) = planes[p0].segment<3>(0);
+		N.block<3,1>(0,1) = planes[p1].segment<3>(0);
+	
+		const Matrix<T,2,2> A = (N.transpose()*N).inverse();
+		assert_eq_ext(A, A, "N: " << N);
+		const Matrix<T,2,1> la = A*(N.transpose()*gi);
+		lambdas[p0] = la[0];
+		lambdas[p1] = la[1];
+
+		assert_ge(lambdas[p0],0.0f);
+		assert_ge(lambdas[p1],0.0f);
+
+	  }else if(face_i.size() >= 3){
+	
+		const int p0 = face_i[0];
+		const int p1 = face_i[1];
+		const int p2 = face_i[2];
+		assert_in(p0, 0, (int)planes.size()-1);
+		assert_in(p1, 0, (int)planes.size()-1);
+		assert_in(p2, 0, (int)planes.size()-1);
+
+		Matrix<T,3,3> N;
+		N.block<3,1>(0,0) = planes[p0].segment<3>(0);
+		N.block<3,1>(0,1) = planes[p1].segment<3>(0);
+		N.block<3,1>(0,2) = planes[p2].segment<3>(0);
+	
+		const Matrix<T,3,3> A = (N.transpose()*N).inverse();
+		assert_eq_ext(A, A, "N: " << N);
+		const Vec3X la = A*(N.transpose()*gi);
+		lambdas[p0] = la[0];
+		lambdas[p1] = la[1];
+		lambdas[p2] = la[2];
+
+		assert_ge(lambdas[p0],0.0f);
+		assert_ge(lambdas[p1],0.0f);
+		assert_ge(lambdas[p2],0.0f);
+	  }
 	}
 
   };
