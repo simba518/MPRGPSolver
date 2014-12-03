@@ -254,6 +254,10 @@ namespace MATH{
 	  return _face;
 	}
 
+	const vector<vector<int> > &getFaceIndex()const{
+	  return _face_indices;
+	}
+
 	// return the largest step in direction -D.
 	T stepLimit(const Vec& X,const Vec& D, const T alpha_cg=ScalarUtil<T>::scalar_max) const{
 

@@ -403,15 +403,21 @@ namespace MATH{
 	
   public:
 	template <typename MAT>
-	static int solve(const MAT &A,const Vec &B, const VVVec4X &planes_for_each_node, Vec &x, const T tol=1e-3, const int max_it = 1000){
+	static int solve(const MAT &A,const Vec &B, PlaneProjector<T> &projector, Vec &x, const T tol=1e-3, const int max_it = 1000){
 
 	  assert_eq(A.rows(),B.size());
 	  assert_eq(A.rows(),x.size());
-	  PlaneProjector<T> projector(planes_for_each_node, x);
 	  DiagonalInFacePreconSolver<T,MAT> precond(A, projector.getFace());
 	  MPRGP<T, MAT, PlaneProjector<T>, DiagonalInFacePreconSolver<T,MAT> > solver(A, B, precond, projector, max_it, tol);
 	  const int rlst_code = solver.solve(x);
 	  return rlst_code;
+	}
+
+	template <typename MAT>
+	static int solve(const MAT &A,const Vec &B, const VVVec4X &planes_for_each_node, Vec &x, const T tol=1e-3, const int max_it = 1000){
+
+	  PlaneProjector<T> projector(planes_for_each_node, x);
+	  return solve(A, B, projector, x, tol, max_it);
 	}
 
 	template <typename MAT>
