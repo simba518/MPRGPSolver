@@ -268,12 +268,12 @@ namespace MATH{
 	  T alpha = alpha_cg+ScalarUtil<T>::scalar_eps;
 	  for (size_t i = 0; i < num_points; ++i){
 
-	  	const Vec3X di = D.block(i*3,0,3,1);
-	  	const Vec3X xi = X.block(i*3,0,3,1);
+	  	const Vec3X di = D.template segment<3>(i*3);
+	  	const Vec3X xi = X.template segment<3>(i*3);
 		const VVec4X &p = _planes[i];
 	  	for (size_t j = 0; j < p.size(); ++j){
 
-	  	  const Vec3X nj = p[j].block(0,0,3,1);
+	  	  const Vec3X nj = p[j].template segment<3>(0);
 	  	  assert_in(nj.norm(),1.0f-ScalarUtil<T>::scalar_eps,1.0f+ScalarUtil<T>::scalar_eps);
 	  	  const T nd = nj.dot(di);
 	  	  if ( nd >= ScalarUtil<T>::scalar_eps){
@@ -298,16 +298,16 @@ namespace MATH{
 	  assert_eq(in.size(),num_points*3);
 	  assert_ge(in.size(),3);
 	  out.resize( in.size() );
-	  Vec3X v = in.block(0,0,3,1);
+	  Vec3X v = in.template segment<3>(0);
 	  Vector3i aSet;
 	  
 	  for (int i = 0; i < in.size(); i += 3){
 
 	  	aSet.setConstant(-1);
 		findFeasible(_planes[i/3], feasible_x, i/3, v);
-		bool found = findClosestPoint( _planes[i/3], in.block(i,0,3,1), v, aSet );
+		bool found = findClosestPoint( _planes[i/3], in.template segment<3>(i), v, aSet );
 		assert(found);
-	  	out.block(i,0,3,1) = v;
+	  	out.template segment<3>(i) = v;
 	  }
 	  assert_ext(isFeasible(_planes,out),"x="<<in.transpose()<<"\nproject(x)="<<out.transpose());
 	}
@@ -322,19 +322,19 @@ namespace MATH{
 	  for (int i = 0; i < in.size(); i += 3){
 	  	assert_eq(_face[i], _face_indices[i/3].size());
 	  	if (3 <= _face[i]){
-	  	  out.block(i,0,3,1).setZero();
+	  	  out.template segment<3>(i).setZero();
 	  	}else if (2 == _face[i]){
 		  const int f0 = _face_indices[i/3][0];
 		  const int f1 = _face_indices[i/3][1];
 		  assert_ne(f0,f1);
-		  const Vec3X n0 = _planes[i/3][f0].block(0,0,3,1);
-		  const Vec3X n1 = _planes[i/3][f1].block(0,0,3,1);
+		  const Vec3X n0 = _planes[i/3][f0].template segment<3>(0);
+		  const Vec3X n1 = _planes[i/3][f1].template segment<3>(0);
 		  const Vec3X n = n0.cross(n1);
-		  out.block(i,0,3,1) = in.block(i,0,3,1).dot(n)*n;
+		  out.template segment<3>(i) = in.template segment<3>(i).dot(n)*n;
 	  	}else if (1 == _face[i]){
 		  const Vec4X &p = _planes[i/3][_face_indices[i/3][0]];
-	  	  projectToPlane(p, in.block(i,0,3,1), temp);
-	  	  out.block(i,0,3,1) = temp;
+	  	  projectToPlane(p, in.template segment<3>(i), temp);
+	  	  out.template segment<3>(i) = temp;
 	  	}
 	  }
 	  assert_eq(in,in);
@@ -353,14 +353,14 @@ namespace MATH{
 
 	  	assert_eq(_face[i], _face_indices[i/3].size());
 	  	if (1 == _face[i]){
-	  	  const Vec3X n = _planes[i/3][_face_indices[i/3][0]].block(0,0,3,1);
-	  	  const T t = in.block(i,0,3,1).dot(n);
+	  	  const Vec3X n = _planes[i/3][_face_indices[i/3][0]].template segment<3>(0);
+	  	  const T t = in.template segment<3>(i).dot(n);
 	  	  if (t < 0)
-	  		out.block(i,0,3,1) = t*n;
+	  		out.template segment<3>(i) = t*n;
 	  	}else if (_face[i]>=2){
-	  	  const bool found = findClosestPoint( _planes[i/3], _face_indices[i/3], in.block(i,0,3,1), phi.block(i,0,3,1), temp );
+	  	  const bool found = findClosestPoint( _planes[i/3], _face_indices[i/3], in.template segment<3>(i), phi.template segment<3>(i), temp );
 	  	  assert(found);
-	  	  out.block(i,0,3,1) = temp;
+	  	  out.template segment<3>(i) = temp;
 	  	}
 	  }
 	  assert_eq(phi,phi);
@@ -373,7 +373,7 @@ namespace MATH{
 	  assert_eq(x,x);
 	  for (int i = 0; i < num_points; i++ ){
 	  	_face_indices[i].clear();
-		Vec3X xi = x.block(i*3,0,3,1);
+		Vec3X xi = x.template segment<3>(i*3);
 	  	for (int f = 0; f < _planes[i].size(); ++f){
 		  const T d = dist(_planes[i][f],xi);
 	  	  if ( fabs(d) < ScalarUtil<T>::scalar_eps ){
@@ -411,7 +411,7 @@ namespace MATH{
   protected:
 	void projectToPlane(const Vec4X &p, const Vec3X &in, Vec3X &out)const{
 
-	  const Vec3X n = p.block(0,0,3,1);
+	  const Vec3X n = p.template segment<3>(0);
 	  assert_in(n.norm(),1.0f-ScalarUtil<T>::scalar_eps,1.0f+ScalarUtil<T>::scalar_eps);
 	  out = in-in.dot(n)*n;
 	}

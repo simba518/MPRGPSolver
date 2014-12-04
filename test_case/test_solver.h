@@ -2,7 +2,13 @@
 #define _TEST_SOLVER_H_
 
 #include <MPRGPSolver.h>
+#include <iostream>
+using namespace std;
 using namespace MATH;
+
+typedef Eigen::Matrix<double,4,1> Vec4d;
+typedef vector<Vec4d,Eigen::aligned_allocator<Vec4d> > VVec4d;
+typedef vector<VVec4d > VVVec4d;
 
 template <class T>
 const SparseMatrix<T> &createFromDense(const Matrix<T,-1,-1> &M, SparseMatrix<T> &S, const T tol=1e-16){
@@ -190,6 +196,8 @@ void testMPRGPPlaneSolver3D_OnePlane(){
 
 void testSolverFromFile(){
 
+  cout << "testSolverFromFile " << endl;
+
   const string dir = "./test_case/data/";
   VectorXd x;
   int rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_vp.QP",x,1e-3,100);
@@ -203,6 +211,69 @@ void testSolverFromFile(){
 
   rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_ball.QP",x,1e-4,100);
   assert_eq_ext(rlst_code,0,dir+"one_tet_ball.QP");
+}
+
+void testComputeLagMultipliers(const string &QP_file, const double tol){
+
+  Eigen::SparseMatrix<double> A;
+  Eigen::Matrix<double,-1,1> B;
+  VVec4d planes;
+  VectorXd x;
+  assert( loadQP(A, B, planes, x, QP_file) );
+  // for (int i = 0; i < planes.size(); ++i){
+  // 	cout << "N:" << planes[i].segment<3>(0).norm() << endl;
+  // 	for (int j = i+1; j < planes.size(); ++j){
+  // 	  cout << (planes[i].segment<3>(0) - planes[j].segment<3>(0)).norm() << endl;
+  // 	}
+  // }
+  // return;
+
+  VVVec4d planes_for_each_node;
+  PlaneProjector<double>::convert(planes, planes_for_each_node, x.size()/3);
+
+  PlaneProjector<double> projector(planes_for_each_node, x);
+  MPRGPPlane<double>::solve(FixedSparseMatrix<double>(A),B,projector,x,tol,2000);
+
+  const VectorXd g = A*x-B;
+  const vector<vector<int> > &face_indices = projector.getFaceIndex();
+  vector<vector<double> > all_lambdas;
+  MPRGPPlane<double>::computeLagMultipliers(g,planes_for_each_node,face_indices,all_lambdas);
+
+  VectorXd diff = g;
+  assert_eq(planes_for_each_node.size(), all_lambdas.size());
+  for (size_t i = 0; i < all_lambdas.size(); ++i){
+	
+	const vector<double> &lambdas = all_lambdas[i];
+	const VVec4d &planes = planes_for_each_node[i];
+	assert_eq(lambdas.size(), planes.size());
+    for (size_t p = 0; p < lambdas.size(); ++p){
+	  const double la = lambdas[p];
+	  const Vector3d n = planes[p].segment<3>(0);
+	  assert_ge(la,0.0);
+	  diff.segment<3>(i*3) -= la*n;
+	}
+  }
+
+  cout<< "\ng:"<< g.norm()<< ", " << g.transpose() << "\n\n";
+  cout<< "d:"<< diff.norm() << ", " << diff.transpose() << "\n\n";
+
+  // const MatrixXd M = A;
+  // IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
+  // cout<< "\n\n" << setprecision(16) << M.format(OctaveFmt) << endl;
+
+}
+
+void testComputeLagMultipliers(){
+
+  cout << "testComputeLagMultipliers " << endl;
+
+  const string dir = "./test_case/data/";
+
+  // testComputeLagMultipliers(dir+"one_tet_vp.QP", 1e-6);
+  // testComputeLagMultipliers(dir+"one_tet_vp2.QP", 1e-6);
+  // testComputeLagMultipliers(dir+"one_tet_cone10.QP", 1e-6);
+  testComputeLagMultipliers(dir+"one_tet_ball.QP", 1e-4);
+
 }
 
 #endif /* _TEST_SOLVER_H_ */

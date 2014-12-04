@@ -21,7 +21,7 @@ namespace MATH{
   // the plane is defined as p[0:2].dot(y)+p[3]=0.
   inline double dist(const Vec4d& p,const Vec3d& v){
 	assert_eq(v,v);
-	return v.dot(p.block<3,1>(0,0))+p[3];
+	return v.dot(p.segment<3>(0))+p[3];
   }
 
   inline bool isFeasible(const VVec4d& p,const Vec3d& v){
@@ -41,7 +41,7 @@ namespace MATH{
 	assert_eq(v,v);
 	assert_eq(v.size()%3,0);
 	for (int i = 0; i < v.size(); i+=3){
-	  const Vec3d vi = v.segment(i,3);
+	  const Vec3d vi = v.segment<3>(i);
 	  if (!isFeasible(planes_for_all_nodes[i/3],vi)){
 		DEBUG_LOG("point "<<i/3<<" is infeasible: " << vi.transpose());
 		return false;
@@ -53,7 +53,7 @@ namespace MATH{
   inline void findFeasible(const VVec4d&p,const VectorXd &feasible_x,const size_t v_id,Vec3d&v){
 
 	if( !isFeasible(p,v) ){
-	  v = feasible_x.block<3,1>(v_id*3,0);
+	  v = feasible_x.segment<3>(v_id*3);
 	  assert( isFeasible(p,v) );
 	}
   }
@@ -75,8 +75,8 @@ namespace MATH{
 		assert_eq(p[i],p[i]);
 		const double E=weight[i]*std::exp(-dist(p[i],v));
 		assert_eq(E,E);
-		H+=p[i].block<3,1>(0,0)*p[i].block<3,1>(0,0).transpose()*E;
-		G-=p[i].block<3,1>(0,0)*E;
+		H+=p[i].segment<3>(0)*p[i].segment<3>(0).transpose()*E;
+		G-=p[i].segment<3>(0)*E;
 	  }
 
 	  if(std::abs(H.determinant()) < ScalarUtil<double>::scalar_eps)
@@ -171,19 +171,19 @@ namespace MATH{
 		dir-=v;
 	  }else if(nrA == 1){
 		//the plane's normal has already been normalized
-		dir=v0-p[aSet[0]].block<3,1>(0,0)*lambda[0];
+		dir=v0-p[aSet[0]].segment<3>(0)*lambda[0];
 		dir-=v;
 	  }else if(nrA == 2){
-		A.row(0)=p[aSet[0]].block<3,1>(0,0);
-		A.row(1)=p[aSet[1]].block<3,1>(0,0);
+		A.row(0)=p[aSet[0]].segment<3>(0);
+		A.row(1)=p[aSet[1]].segment<3>(0);
 		M2=A.block<2,3>(0,0)*A.block<2,3>(0,0).transpose();
-		lambda.block<2,1>(0,0)=M2.llt().solve(lambda.block<2,1>(0,0));
-		dir=v0-A.block<2,3>(0,0).transpose()*lambda.block<2,1>(0,0);
+		lambda.segment<2>(0)=M2.llt().solve(lambda.segment<2>(0));
+		dir=v0-A.block<2,3>(0,0).transpose()*lambda.segment<2>(0);
 		dir-=v;
 	  }else if(nrA == 3){
-		A.row(0)=p[aSet[0]].block<3,1>(0,0);
-		A.row(1)=p[aSet[1]].block<3,1>(0,0);
-		A.row(2)=p[aSet[2]].block<3,1>(0,0);
+		A.row(0)=p[aSet[0]].segment<3>(0);
+		A.row(1)=p[aSet[1]].segment<3>(0);
+		A.row(2)=p[aSet[2]].segment<3>(0);
 		M3=A*A.transpose();
 		lambda=M3.llt().solve(lambda);
 		dir.setZero();	//in that case, no dir can be allowed
@@ -219,7 +219,7 @@ namespace MATH{
 		for(int i=0;i<nrP;i++){
 		  if (aTag[i])
 			continue;
-		  nDotDir=p[i].block<3,1>(0,0).dot(dir);
+		  nDotDir=p[i].segment<3>(0).dot(dir);
 		  if(nDotDir < 0.0f){
 			assert_eq(v,v);
 			distP=dist(p[i],v);
@@ -243,10 +243,10 @@ namespace MATH{
 		  // @bug should return false? why there is rounding error?
 		  for(char d=0;d<nrA;d++)
 			if(minA == aSet[d]){
-			  ERROR_LOG("rounding error\n"<<setprecision(14)
+			  ERROR_LOG("\nrounding error"<<setprecision(14)
 						<<"\nv0: "<< v0.transpose() <<"\nv: " << v.transpose()
-						<< "\ndist(v0): " << dist(p[minA],v0) << "\ndist(v): " << dist(p[minA],v)
-						<<"\nset: "<< aSet.transpose()<< "\nminA: "<< minA	);
+						<<"\ndist(v0): "<<dist(p[minA],v0)<<"\ndist(v): "<<dist(p[minA],v)
+						<<"\nset: "<< aSet.transpose()<< "\nminA: "<< minA<<"\n");
 			  return true;
 			}
 		  //expand active set

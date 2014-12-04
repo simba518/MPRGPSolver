@@ -62,7 +62,7 @@ namespace MATH{
 	  size_t iteration=0;
 	  for(; iteration<_maxIterations; iteration++){
 
-		DEBUG_LOG(setprecision(10)<<"func: "<<_A.funcValue(result,_B));
+		DEBUG_LOG(setprecision(16)<<"func: "<<_A.funcValue(result,_B));
 
 		//test termination
 		assert_eq(_g,_g);
@@ -454,11 +454,12 @@ namespace MATH{
 	  assert_eq(g.size(), num_verts*3);
 	  all_lambdas.resize(num_verts);
 	  for(int i = 0; i < num_verts; i++){
-		const Vec3X gi = gi.segment<3>(i*3);
-		computeLambdas(gi, planes_for_each_node[i], face_indices[i], all_lambdas[i]);
+		const Vec3X gi = g.template segment<3>(i*3);
+		computeLagMultipliers(gi, planes_for_each_node[i], face_indices[i], all_lambdas[i]);
 	  }
 	}
 
+  protected:
 	static void computeLagMultipliers(const Vec3X &gi, const VVec4X &planes,
 									  const std::vector<int> &face_i,
 									  std::vector<T> &lambdas){
@@ -472,7 +473,7 @@ namespace MATH{
 
 		const int p = face_i[0];
 		assert_in(p, 0, (int)planes.size()-1);
-		lambdas[p] = gi.dot(planes[p].segment<3>(0));
+		lambdas[p] = gi.dot(planes[p].template segment<3>(0));
 		assert_ge(lambdas[p],0.0f);
 
 	  }else if(face_i.size() == 2){
@@ -483,8 +484,8 @@ namespace MATH{
 		assert_in(p1, 0, (int)planes.size()-1);
 
 		Matrix<T, 3,2> N;
-		N.block<3,1>(0,0) = planes[p0].segment<3>(0);
-		N.block<3,1>(0,1) = planes[p1].segment<3>(0);
+		N.template block<3,1>(0,0) = planes[p0].template segment<3>(0);
+		N.template block<3,1>(0,1) = planes[p1].template segment<3>(0);
 	
 		const Matrix<T,2,2> A = (N.transpose()*N).inverse();
 		assert_eq_ext(A, A, "N: " << N);
@@ -505,9 +506,9 @@ namespace MATH{
 		assert_in(p2, 0, (int)planes.size()-1);
 
 		Matrix<T,3,3> N;
-		N.block<3,1>(0,0) = planes[p0].segment<3>(0);
-		N.block<3,1>(0,1) = planes[p1].segment<3>(0);
-		N.block<3,1>(0,2) = planes[p2].segment<3>(0);
+		N.template block<3,1>(0,0) = planes[p0].template segment<3>(0);
+		N.template block<3,1>(0,1) = planes[p1].template segment<3>(0);
+		N.template block<3,1>(0,2) = planes[p2].template segment<3>(0);
 	
 		const Matrix<T,3,3> A = (N.transpose()*N).inverse();
 		assert_eq_ext(A, A, "N: " << N);
