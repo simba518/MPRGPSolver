@@ -51,10 +51,9 @@ namespace MATH{
 
 		  Vec& AP=_gp;
 		  _A.multiply(_p,AP);
-		  const T pd = _p.dot(AP); assert_ne(pd, 0);
+		  const T pd = _p.dot(AP); assert_ge(pd, 0); // pd = p^t*A*p > 0
 		  const T alphaCG = (_z.dot(_g)) / pd; assert_ge(alphaCG, 0);
 		  const T alphaF = _projector.stepLimit(result,_p,alphaCG); assert_ge(alphaF, 0);
-		  CGStep(AP, alphaCG, result);
 
 		  if(alphaCG <= alphaF){
 			CGStep(AP, alphaCG, result);
