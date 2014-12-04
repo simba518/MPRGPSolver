@@ -35,160 +35,38 @@ namespace MATH{
 	
 	int solve(Vec &result){
 
-	  FUNC_TIMER();
-	  
-	  //declaration
-	  T alphaCG,alphaF,beta;
-	  Vec& AP=_gp;
-	  Vec& AD=_gp;
-	  Vec& xTmp=_beta;
-	  Vec& D=_phi;
+	  initialize(result);
 
-	  //initialization
-	  _A.multiply(result,_g);
-	  _g -= _B;
-	  _projector.DECIDE_FACE(result);
+	  for( iteration = 0; iteration < _maxIterations; iteration++ ){
 
-	  assert_eq(_g,_g);
-	  _projector.PHI(_g, _phi);
-	  _precond.solve(_phi,_z);
-	  _p = _z;
-	  assert_eq(_p,_p);
-	  int result_code = -1;
-	  
-	  int num_cg=0, num_exp=0, num_prop=0;
+		_residualOut = computeGradients(_g);
 
-	  //MPRGP iteration
-	  size_t iteration=0;
-	  for(; iteration<_maxIterations; iteration++){
-
-		DEBUG_LOG(setprecision(16)<<"func: "<<_A.funcValue(result,_B));
-
-		//test termination
-		assert_eq(_g,_g);
-		_projector.PHI(_g,_phi);
-		_projector.BETA(_g,_beta,_phi);
-		assert_eq(_phi.size(), _beta.size());
-		_gp = _phi+_beta;
-		_residualOut=_gp.norm();
-
-		assert_le(_phi.dot(_beta),ScalarUtil<T>::scalar_eps*_residualOut);
-		DEBUG_LOG(setprecision(10)<<"||g||: "<<_g.norm());
-		DEBUG_LOG(setprecision(10)<<"||beta||: "<<_beta.norm());
-		DEBUG_LOG(setprecision(10)<<"||phi||: "<<_phi.norm());
-		DEBUG_LOG(setprecision(10)<<"residual: "<<_residualOut);
-		DEBUG_LOG("phi: "<<_phi.transpose());
-		DEBUG_LOG("beta: "<<_beta.transpose());
-
-		// debug
-		// DEBUG_FUN(assert(writeVTK(result, "beta_phi_g.vtk")));
-		// DEBUG_FUN(assert(printFace()));
-
-		if(_residualOut <= _toleranceFactor){
+		if( _residualOut <= _toleranceFactor ){
 		  _iterationsOut = iteration;
 		  result_code = 0;
 		  break;
 		}
 
-		//test proportional x: beta*beta <= gamma*gamma*phi*phiTilde
-		const T beta_norm = _beta.norm();
-		assert_eq(beta_norm, beta_norm);
-		assert_eq(_g,_g);
+		if( proportional(result) ){
 
-		if(beta_norm*beta_norm <= _Gamma*_Gamma*_projector.PHITPHI(result,_alphaBar,_phi)){
-
-		  //prepare conjugate gradient
+		  Vec& AP=_gp;
 		  _A.multiply(_p,AP);
-		  const T pd = _p.dot(AP);
-		  assert_eq(pd,pd);
-		  assert_gt(pd,0); // pd = p^t*A*p > 0
-		  alphaCG = (_z.dot(_g)) / pd;
-		  assert_eq(alphaCG, alphaCG);
-		  assert_ge(alphaCG,0.0f);
-		  alphaF = _projector.stepLimit(result,_p,alphaCG);
-		  assert_eq(alphaF, alphaF);
-		  assert_ge(alphaF,0.0f);
-
-		  DEBUG_LOG("alphaCG: "<<alphaCG);
-		  DEBUG_LOG("alphaF: "<<alphaF);
-		  DEBUG_LOG("alphaF-alphaCG: "<<alphaF-alphaCG);
+		  const T pd = _p.dot(AP); assert_ne(pd, 0);
+		  const T alphaCG = (_z.dot(_g)) / pd; assert_ge(alphaCG, 0);
+		  const T alphaF = _projector.stepLimit(result,_p,alphaCG); assert_ge(alphaF, 0);
+		  CGStep(AP, alphaCG, result);
 
 		  if(alphaCG <= alphaF){
-			//conjugate gradient step
-			DEBUG_LOG("cg step");
-			num_cg ++;
-			assert_ge(alphaCG,0.0f);
-			result = result-alphaCG*_p;
-			_g -= alphaCG*AP;
-
-			assert_eq(_g,_g);
-			_projector.PHI(_g, _phi);
-			assert_ge(_g.dot(_phi),-ScalarUtil<T>::scalar_eps);
-			_precond.solve(_phi,_z);
-			assert_ge(_g.dot(_z),-ScalarUtil<T>::scalar_eps);
-			beta = (_z.dot(AP)) / (_p.dot(AP));
-			_p = _z-beta*_p;
-			assert_eq(_p,_p);
-
+			CGStep(AP, alphaCG, result);
 		  }else{
-			//expansion step
-			DEBUG_LOG("exp step");
-			num_exp ++;
-			xTmp = result-alphaF*_p;
-			_g -= alphaF*AP;
-			_projector.DECIDE_FACE(xTmp);
-			assert_eq(_g,_g);
-			_projector.PHI(_g, _phi);
-			xTmp -= _alphaBar*_phi;
-			_projector.project(xTmp,result);
-			_A.multiply(result,_g);
-			_g -= _B;
-			_projector.DECIDE_FACE(result);
-
-			assert_eq(_g,_g);
-			_projector.PHI(_g, _phi);
-			_precond.solve(_phi,_z);
-
-			// _precond.solve(_g,_z);
-			_p = _z;
-			assert_eq(_p,_p);
+			ExpStep(AP, alphaF, result);
 		  }
 		}else{
-		  //proportioning
-		  DEBUG_LOG("prop step");
-		  num_prop ++;
-		  assert_gt(beta_norm,0);
-		  D = _beta;
-		  _A.multiply(D,AD);
-		  assert_gt(AD.norm(),0);
-		  const T ddad = D.dot(AD);
-		  assert_ne(ddad,0);
-		  alphaCG = (_g.dot(D)) / ddad;
-		  result -= alphaCG*D;
-
-		  // @note we need to project result when 3D plane constraints are used.
-		  xTmp = result;
-		  _projector.project(xTmp,result);
-
-		  _g -= alphaCG*AD;
-		  _projector.DECIDE_FACE(result);
-
-		  assert_eq(_g,_g);
-		  _projector.PHI(_g, _phi);
-		  _precond.solve(_phi,_z);
-		  _p = _z;
-		  assert_eq(_p,_p);
-
+		  PropStep(result);
 		}
 	  }
 
-	  WARN_LOG_COND("MPRGP not convergent with "<< _maxIterations << " iterations."<<endl, iteration >= _maxIterations);
-	  INFO_LOG("cg steps: "<< num_cg);
-	  INFO_LOG("exp steps: "<< num_exp);
-	  INFO_LOG("prop steps: "<< num_prop);
-	  INFO_LOG("MPRGP iter: "<<iteration);
-	  INFO_LOG("constraints: "<<COUNT_CONSTRAINTS(_projector.getFace()));
-
+	  WARN_LOG_COND("MPRGP is not convergent with "<< _maxIterations << " iterations."<<endl, iteration >= _maxIterations);
 	  return result_code;
 	}
 
@@ -204,7 +82,7 @@ namespace MATH{
 
 	  FUNC_TIMER()
 
-	  T delta;
+		T delta;
 	  Vec tmp,tmpOut;
 	  tmp.resize(G.rows());
 	  tmpOut.resize(G.rows());
@@ -290,6 +168,97 @@ namespace MATH{
 	  cout << "\n";
 	  return true;
 	}
+	void printSolveInfo()const{
+	  INFO_LOG("cg steps: "<< num_cg);
+	  INFO_LOG("exp steps: "<< num_exp);
+	  INFO_LOG("prop steps: "<< num_prop);
+	  INFO_LOG("MPRGP iter: "<<iteration);
+	  INFO_LOG("constraints: "<<COUNT_CONSTRAINTS(_projector.getFace()));
+	}
+
+  protected:
+	inline void initialize(const Vec &result){
+	  
+	  _A.multiply(result,_g);
+	  _g -= _B;
+	  _projector.DECIDE_FACE(result);
+	  _projector.PHI(_g, _phi);
+	  _precond.solve(_phi,_z);     assert_eq(_z,_z);
+	  _p = _z;
+	  
+	  result_code = -1;
+	  num_cg = num_exp = num_prop = iteration = 0;
+	}
+	inline T computeGradients(const Vec &g){
+
+	  _projector.PHI(g,_phi);
+	  _projector.BETA(g,_beta,_phi);
+	  _gp = _phi+_beta;
+	  const T residual = _gp.norm();
+	  assert_le(_phi.dot(_beta),ScalarUtil<T>::scalar_eps*residual);
+	  return residual;
+	}
+	inline bool proportional(const Vec &result)const{
+	  //test proportional x: beta*beta <= gamma*gamma*phi*phiTilde
+	  const T beta_norm = _beta.norm();
+	  const T left = beta_norm*beta_norm;  assert_eq(left, left);
+	  const T right = _Gamma*_Gamma*_projector.PHITPHI(result,_alphaBar,_phi);  assert_eq(right, right);
+	  return left <= right;
+	}
+	inline void CGStep(const Vec &AP, double alphaCG, Vec &result){
+
+	  DEBUG_LOG("cg_step");
+	  num_cg ++;
+
+	  assert_eq(alphaCG, alphaCG);
+	  result -= alphaCG*_p;
+	  _g -= alphaCG*AP;
+	  _projector.PHI(_g, _phi);  assert_ge(_g.dot(_phi),-ScalarUtil<T>::scalar_eps);
+	  _precond.solve(_phi,_z);   assert_eq(_z, _z);  assert_ge(_g.dot(_z),-ScalarUtil<T>::scalar_eps);
+	  const T beta = (_z.dot(AP)) / (_p.dot(AP)); assert_eq(beta, beta);
+	  _p = _z-beta*_p;
+	}
+	inline void ExpStep(const Vec &AP, double alphaF, Vec &result){
+
+	  DEBUG_LOG("exp_step");
+	  num_exp ++;
+
+	  assert_eq(alphaF, alphaF);
+	  Vec &xTmp=_beta;
+	  xTmp = result-alphaF*_p;
+	  _g -= alphaF*AP;
+	  _projector.DECIDE_FACE(xTmp);
+	  _projector.PHI(_g, _phi);
+	  xTmp -= _alphaBar*_phi;
+	  _projector.project(xTmp,result);
+	  _A.multiply(result,_g);
+	  _g -= _B;
+	  _projector.DECIDE_FACE(result);
+	  _projector.PHI(_g, _phi); 
+	  _precond.solve(_phi,_z); assert_eq(_z, _z);
+	  _p = _z;
+	}
+	inline void PropStep(Vec &result){
+
+	  DEBUG_LOG("prop_step");
+	  num_prop ++;
+
+	  const Vec &D = _beta;
+	  Vec& AD=_gp;
+	  _A.multiply(D,AD);
+	  const T ddad = D.dot(AD); assert_ne(ddad,0);
+	  const T alphaCG = (_g.dot(D)) / ddad; assert_eq(alphaCG, alphaCG);
+	  result -= alphaCG*D;
+
+	  Vec& xTmp=_beta;
+	  xTmp = result;
+	  _projector.project(xTmp,result);
+	  _g -= alphaCG*AD;
+	  _projector.DECIDE_FACE(result);
+	  _projector.PHI(_g, _phi);
+	  _precond.solve(_phi,_z); assert_eq(_z, _z);
+	  _p = _z;
+	}
 
   protected:
 	//problem
@@ -309,6 +278,10 @@ namespace MATH{
 	Vec _g,_p,_z,_beta,_phi,_gp;
 	size_t _iterationsOut;
 	T _residualOut;
+
+	// solving info
+	int result_code;
+	int num_cg, num_exp, num_prop, iteration;
   };
 
   // a matrix providing matrix-vector production, rows, and diagonal elements.

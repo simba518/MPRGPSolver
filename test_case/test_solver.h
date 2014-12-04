@@ -220,13 +220,27 @@ void testComputeLagMultipliers(const string &QP_file, const double tol){
   VVec4d planes;
   VectorXd x;
   assert( loadQP(A, B, planes, x, QP_file) );
-  // for (int i = 0; i < planes.size(); ++i){
-  // 	cout << "N:" << planes[i].segment<3>(0).norm() << endl;
-  // 	for (int j = i+1; j < planes.size(); ++j){
-  // 	  cout << (planes[i].segment<3>(0) - planes[j].segment<3>(0)).norm() << endl;
-  // 	}
-  // }
-  // return;
+
+  {
+	const VVec4d tempt = planes;
+	planes.clear();
+	for (int i = 0; i < tempt.size(); ++i){
+	  const Vector3d ni = planes[i].segment<3>(0);
+	  assert_in(ni.norm(), 1-1e-8, 1+1e-8);
+	  int j = 0;
+	  for ( ;j < planes.size(); ++j ){
+		const Vector3d nj = planes[j].segment<3>(0);
+		if((ni-nj).norm() < 1e-4)
+		  break;
+	  }
+	  if( j == planes.size() )
+		planes.push_back(tempt[i]);
+	}
+	// cout << "\n\n";
+	// const MatrixXd M = A;
+	// IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
+	// cout<< "\n\n" << setprecision(16) << M.format(OctaveFmt) << "\n\n";
+  }
 
   VVVec4d planes_for_each_node;
   PlaneProjector<double>::convert(planes, planes_for_each_node, x.size()/3);
@@ -257,10 +271,6 @@ void testComputeLagMultipliers(const string &QP_file, const double tol){
   cout<< "\ng:"<< g.norm()<< ", " << g.transpose() << "\n\n";
   cout<< "d:"<< diff.norm() << ", " << diff.transpose() << "\n\n";
 
-  // const MatrixXd M = A;
-  // IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
-  // cout<< "\n\n" << setprecision(16) << M.format(OctaveFmt) << endl;
-
 }
 
 void testComputeLagMultipliers(){
@@ -272,7 +282,7 @@ void testComputeLagMultipliers(){
   // testComputeLagMultipliers(dir+"one_tet_vp.QP", 1e-6);
   // testComputeLagMultipliers(dir+"one_tet_vp2.QP", 1e-6);
   // testComputeLagMultipliers(dir+"one_tet_cone10.QP", 1e-6);
-  testComputeLagMultipliers(dir+"one_tet_ball.QP", 1e-4);
+  testComputeLagMultipliers(dir+"one_tet_ball.QP", 1e-6);
 
 }
 
