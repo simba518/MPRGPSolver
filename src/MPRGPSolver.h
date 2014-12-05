@@ -28,9 +28,10 @@ namespace MATH{
 
 	  setParameters(tol,max_it);
 	  _Gamma=1.0f;
-	  _alphaBar=2.0f/specRad(_A,NULL,tol);
+	  _alphaBar=2.0/specRad(_A,NULL,tol);
 	  _iterationsOut = 0;
 	  _residualOut = 0.0f;
+	  DEBUG_LOG(setprecision(16) << "alpha_bar: " << _alphaBar);
 	}
 	
 	int solve(Vec &result){
@@ -38,6 +39,9 @@ namespace MATH{
 	  initialize(result);
 
 	  for( iteration = 0; iteration < _maxIterations; iteration++ ){
+
+		DEBUG_LOG("mprgp step "<<iteration);
+		DEBUG_LOG( setprecision(12) << "func: " << (fun_val = _A.funcValue(result, _B)) );
 
 		_residualOut = computeGradients(_g);
 
@@ -79,13 +83,13 @@ namespace MATH{
 	T residualOut()const{return _residualOut;}
 	static T specRad(const MAT& G,Vec* ev=NULL,const T& eps=1E-3f){
 
-	  FUNC_TIMER()
+	  FUNC_TIMER();
 
-		T delta;
+	  T delta;
 	  Vec tmp,tmpOut;
 	  tmp.resize(G.rows());
 	  tmpOut.resize(G.rows());
-	  tmp.setRandom();
+	  tmp.setRandom(); ///@todo warm start ?
 	  tmp.normalize();
 
 	  T normTmpOut = 1.0;
@@ -190,11 +194,21 @@ namespace MATH{
 	}
 	inline T computeGradients(const Vec &g){
 
+	  // DEBUG_FUN(assert(printFace()));
 	  _projector.PHI(g,_phi);
 	  _projector.BETA(g,_beta,_phi);
 	  _gp = _phi+_beta;
 	  const T residual = _gp.norm();
 	  assert_le(_phi.dot(_beta),ScalarUtil<T>::scalar_eps*residual);
+
+	  DEBUG_LOG(setprecision(10)<<"||g||: "<<_g.norm());
+	  DEBUG_LOG(setprecision(10)<<"||beta||: "<<_beta.norm());
+	  DEBUG_LOG(setprecision(10)<<"||phi||: "<<_phi.norm());
+	  DEBUG_LOG(setprecision(10)<<"residual: "<<residual);
+	  DEBUG_LOG("g: "<<g.transpose());
+	  DEBUG_LOG("phi: "<<_phi.transpose());
+	  DEBUG_LOG("beta: "<<_beta.transpose());
+
 	  return residual;
 	}
 	inline bool proportional(const Vec &result)const{
@@ -212,8 +226,8 @@ namespace MATH{
 	  assert_eq(alphaCG, alphaCG);
 	  result -= alphaCG*_p;
 	  _g -= alphaCG*AP;
-	  _projector.PHI(_g, _phi);  assert_ge(_g.dot(_phi),-ScalarUtil<T>::scalar_eps);
-	  _precond.solve(_phi,_z);   assert_eq(_z, _z);  assert_ge(_g.dot(_z),-ScalarUtil<T>::scalar_eps);
+	  _projector.PHI(_g, _phi);  assert_ge(_g.dot(_phi),0);
+	  _precond.solve(_phi,_z);   assert_eq(_z, _z);  assert_ge(_g.dot(_z),0);
 	  const T beta = (_z.dot(AP)) / (_p.dot(AP)); assert_eq(beta, beta);
 	  _p = _z-beta*_p;
 	}
@@ -221,15 +235,16 @@ namespace MATH{
 
 	  DEBUG_LOG("exp_step");
 	  num_exp ++;
+	  // DEBUG_FUN(fun_val = _A.funcValue(result, _B));
 
 	  assert_eq(alphaF, alphaF);
 	  Vec &xTmp=_beta;
-	  xTmp = result-alphaF*_p;
+	  xTmp = result-alphaF*_p; // DEBUG_FUN({const T fun = _A.funcValue(xTmp, _B); assert_le(fun, fun_val)} );
 	  _g -= alphaF*AP;
 	  _projector.DECIDE_FACE(xTmp);
 	  _projector.PHI(_g, _phi);
-	  xTmp -= _alphaBar*_phi;
-	  _projector.project(xTmp,result);
+	  xTmp -= _alphaBar*_phi; // DEBUG_FUN({const T fun = _A.funcValue(xTmp, _B); assert_le(fun, fun_val)} );
+	  _projector.project(xTmp,result); // DEBUG_FUN({const T fun = _A.funcValue(result, _B); assert_le(fun, fun_val)} );
 	  _A.multiply(result,_g);
 	  _g -= _B;
 	  _projector.DECIDE_FACE(result);
@@ -281,6 +296,7 @@ namespace MATH{
 	// solving info
 	int result_code;
 	int num_cg, num_exp, num_prop, iteration;
+	T fun_val;
   };
 
   // a matrix providing matrix-vector production, rows, and diagonal elements.
@@ -310,7 +326,7 @@ namespace MATH{
 	
 	// return 1/2*x^t*A*x-x^t*b
 	template <typename VEC, typename VEC_SECOND>
-	T funcValue(const VEC& x,VEC_SECOND&b)const{
+	T funcValue(const VEC& x,const VEC_SECOND&b)const{
 	  assert_eq(A.rows(),x.size());
 	  assert_eq(A.cols(),x.size());
 	  assert_eq(b.size(),x.size());

@@ -19,6 +19,7 @@
 # define assert_le_ext(value_a,value_b,info)		
 # define assert_lt_ext(value_a,value_b,info)		
 # define assert_in_ext(value_a,min,max,info)
+# define DEBUG_FUN(event)
 #endif /* UTILITY_ASSERT  */
 
 #if defined(UTILITY_LOG)
@@ -194,11 +195,11 @@ namespace MATH{
 	}
 	A.setFromTriplets(tri.begin(), tri.end());
 	  
-	// write B
+	// read B
 	in >> temp_str;
 	for (int i = 0; i < B.size(); ++i) in >> B[i];
 
-	// write P
+	// read P
 	in >> temp_str;
 	for (int i = 0; i < planes.size(); ++i){
 	  in >> planes[i][0];
@@ -207,7 +208,7 @@ namespace MATH{
 	  in >> planes[i][3];
 	}
 
-	// write x0
+	// read x0
 	in >> temp_str;
 	for (int i = 0; i < x0.size(); ++i) in >> x0[i];
 

@@ -35,16 +35,16 @@ namespace MATH{
 	  assert_eq(_L.size(), X.size());
 	  T ret=ScalarUtil<T>::scalar_max;
 	  T tmp;
-#pragma omp parallel private(tmp)
+// #pragma omp parallel private(tmp)
 	  {
 		tmp=ScalarUtil<T>::scalar_max;
-#pragma omp for
+// #pragma omp for
 		for(size_t i=0;i<X.size();i++){
 		  if(D[i] > ScalarUtil<T>::scalar_eps && X[i] > _L[i])	//handle rounding err
 			tmp=std::min<T>(tmp,(X[i]-_L[i])/D[i]);
 		}
 
-		OMP_CRITICAL_
+		// OMP_CRITICAL_
 		  ret=std::min<T>(ret,tmp);
 	  }
 	  return ret;
@@ -96,7 +96,7 @@ namespace MATH{
 	  assert_eq(x.size(), phi.size());
 	  const Vec &L = _L;
 	  T phiTphi=0.0f;
-#pragma omp parallel for reduction(+:phiTphi)
+// #pragma omp parallel for reduction(+:phiTphi)
 	  for(size_t i=0;i<x.rows();i++){
 		T phiTilde=0.0f;
 		if(phi[i] > 0.0f && x[i] > L[i])	//handle rounding error
@@ -135,10 +135,10 @@ namespace MATH{
 	  assert_eq(_H.size(), X.size());
 	  T ret=ScalarUtil<T>::scalar_max;
 	  T tmp;
-#pragma omp parallel private(tmp)
+// #pragma omp parallel private(tmp)
 	  {
 		tmp=ScalarUtil<T>::scalar_max;
-#pragma omp for
+// #pragma omp for
 		for(size_t i=0;i<X.size();i++)
 		  {
 			if(D[i] > ScalarUtil<T>::scalar_eps && X[i] > _L[i])	//handle rounding err
@@ -147,7 +147,7 @@ namespace MATH{
 			  tmp=std::min<T>(tmp,(X[i]-_H[i])/D[i]);
 		  }
 
-		OMP_CRITICAL_
+		// OMP_CRITICAL_
 		  ret=std::min<T>(ret,tmp);
 	  }
 	  return ret;
@@ -199,7 +199,7 @@ namespace MATH{
 	  const Vec &L = _L;
 	  const Vec &H = _H;
 	  T phiTphi=0.0f;
-#pragma omp parallel for reduction(+:phiTphi)
+// #pragma omp parallel for reduction(+:phiTphi)
 	  for(size_t i=0;i<x.rows();i++){
 		T phiTilde=0.0f;
 		if(phi[i] > 0.0f && x[i] > L[i])	//handle rounding error
@@ -259,43 +259,32 @@ namespace MATH{
 	}
 
 	// return the largest step in direction -D.
-	T stepLimit(const Vec& X,const Vec& D, const T alpha_cg=ScalarUtil<T>::scalar_max) const{
+	T stepLimit(const Vec&X,const Vec&D,const T alpha_cg=ScalarUtil<T>::scalar_max)const{
 
 	  const size_t num_points = _face_indices.size();
 	  assert_eq(D.size(),num_points*3);
 	  assert_eq(D.size(), X.size());
+	  assert_ext(isFeasible(_planes, X), "alpha_cg: "<<alpha_cg);
 
-	  T alpha = alpha_cg+ScalarUtil<T>::scalar_eps;
+	  T alpha = (alpha_cg == ScalarUtil<T>::scalar_max ? alpha_cg: (alpha_cg+ScalarUtil<T>::scalar_eps));
+	  assert_gt(alpha, 0.0);
 	  for (size_t i = 0; i < num_points; ++i){
 
 	  	const Vec3X di = D.template segment<3>(i*3);
 	  	const Vec3X xi = X.template segment<3>(i*3);
 		const VVec4X &p = _planes[i];
 	  	for (size_t j = 0; j < p.size(); ++j){
-
-	  	  const Vec3X nj = p[j].template segment<3>(0);
-	  	  assert_in(nj.norm(),1.0f-ScalarUtil<T>::scalar_eps,1.0f+ScalarUtil<T>::scalar_eps);
-	  	  const T nd = nj.dot(di);
-	  	  if ( nd >= ScalarUtil<T>::scalar_eps){
-	  		const T alpha_ij = (nj.dot(xi)+p[j][3])/nd;
-			if (alpha_ij >= 0)
-			  alpha = std::min<T>(alpha, alpha_ij);
-	  	  }
-
-		  if(dist(p[j],(xi-alpha_cg*di))<-ScalarUtil<double>::scalar_eps){
-			alpha = std::min<T>(alpha, alpha_cg-ScalarUtil<double>::scalar_eps);
-		  }
-
+		  alpha = stepLimit(p[j], di, xi, alpha, alpha_cg);
 	  	}
 	  }
 	  assert_ge(alpha, 0.0f);
+	  assert_ext(isFeasible(_planes, X-alpha*D), "alpha: "<<alpha<<", alpha_cg: "<<alpha_cg);
 	  return alpha;
 	}
 
 	void project(const Vec& in,Vec& out) const{
 
-	  const size_t num_points = _face_indices.size();
-	  assert_eq(in.size(),num_points*3);
+	  assert_eq(in.size(),_face_indices.size()*3);
 	  assert_ge(in.size(),3);
 	  out.resize( in.size() );
 	  Vec3X v = in.template segment<3>(0);
@@ -314,16 +303,13 @@ namespace MATH{
 
 	void PHI(const Vec& in,Vec& out){
 
-	  const size_t num_points = _face_indices.size();
-	  assert_eq(in.size(),num_points*3);
+	  assert_eq(in.size(),_face_indices.size()*3);
 	  out = in;
 	  Vec3X temp;
 	  temp.setZero();
 	  for (int i = 0; i < in.size(); i += 3){
 	  	assert_eq(_face[i], _face_indices[i/3].size());
-	  	if (3 <= _face[i]){
-	  	  out.template segment<3>(i).setZero();
-	  	}else if (2 == _face[i]){
+	  	if (2 == _face[i]){
 		  const int f0 = _face_indices[i/3][0];
 		  const int f1 = _face_indices[i/3][1];
 		  assert_ne(f0,f1);
@@ -336,6 +322,10 @@ namespace MATH{
 	  	  projectToPlane(p, in.template segment<3>(i), temp);
 	  	  out.template segment<3>(i) = temp;
 	  	}
+		if (3 <= _face[i] || out.template segment<3>(i).dot(in.template segment<3>(i)) < 0 ){
+		  // blocked or rounding error: gradient is almost perpendicular to the plane.
+		  out.template segment<3>(i).setZero();
+		}
 	  }
 	  assert_eq(in,in);
 	  assert_eq(out,out);
@@ -343,8 +333,7 @@ namespace MATH{
 
 	void BETA(const Vec& in, Vec& out, const Vec&phi){
 
-	  const size_t num_points = _face_indices.size();
-	  assert_eq(in.size(),num_points*3);
+	  assert_eq(in.size(),_face_indices.size()*3);
 	  out.resize(in.size());
 	  out.setZero();
 
@@ -409,11 +398,28 @@ namespace MATH{
 	}
 
   protected:
-	void projectToPlane(const Vec4X &p, const Vec3X &in, Vec3X &out)const{
+	inline void projectToPlane(const Vec4X &p, const Vec3X &in, Vec3X &out)const{
 
 	  const Vec3X n = p.template segment<3>(0);
 	  assert_in(n.norm(),1.0f-ScalarUtil<T>::scalar_eps,1.0f+ScalarUtil<T>::scalar_eps);
 	  out = in-in.dot(n)*n;
+	}
+	inline T stepLimit(const Vec4X &p, const Vec3X &d, const Vec3X &x, T alpha, const T alpha_cg)const{
+	  
+	  const T nd = p.template segment<3>(0).dot(d);
+	  const T dnorm = d.norm();
+	  const T tol = ScalarUtil<T>::scalar_eps*dnorm*dnorm;
+
+	  if ( nd >= tol){
+	  	const T alpha_ij = (p.template segment<3>(0).dot(x)+p[3])/nd;
+	  	if (alpha_ij >= 0)
+	  	  alpha = std::min<T>(alpha, alpha_ij);
+	  }
+	  const T tol_diff = -ScalarUtil<T>::scalar_eps;
+	  while( alpha >= ScalarUtil<T>::scalar_eps && dist( p,(x-alpha*d) ) < tol_diff){
+	  	alpha *= 0.5f;
+	  }
+	  return alpha;
 	}
 	
   private:

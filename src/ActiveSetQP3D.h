@@ -138,7 +138,7 @@ namespace MATH{
 	vector<bool> aTag(nrP,false);
 	for(char d=0;d<3;d++){
 	  if(aSet[d] != -1){
-		assert_in(aSet[d],0,aTag.size()-1);
+		assert_in(aSet[d],0,(int)aTag.size()-1);
 		aTag[aSet[d]]=true;
 		aSet[nrA++]=aSet[d];
 	  }
@@ -282,8 +282,8 @@ namespace MATH{
 	aSet.setConstant(-1);
 	VVec4d planes;
 	planes.reserve(f.size());
-	for (int i = 0; i < f.size(); ++i){
-	  assert_in(f[i],0,p.size()-1);
+	for (int i = 0; i < (int)f.size(); ++i){
+	  assert_in(f[i],0,(int)p.size()-1);
 	  planes.push_back(p[f[i]]);
 	  planes[i].head(3) *= -1.0f;
 	  planes[i][3]=0; 

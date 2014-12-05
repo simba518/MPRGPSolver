@@ -199,21 +199,35 @@ void testSolverFromFile(){
   cout << "testSolverFromFile " << endl;
 
   const string dir = "./test_case/data/";
-  VectorXd x;
-  int rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_vp.QP",x,1e-3,100);
-  assert_eq_ext(rlst_code,0,dir+"one_tet_vp.QP");
+  {
+	VectorXd x;
+	const int rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_vp.QP",x,1e-6,11);
+	assert_eq_ext(rlst_code,0,dir+"one_tet_vp.QP");
+  }
 
-  rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_vp2.QP",x,1e-3,100);
-  assert_eq_ext(rlst_code,0,dir+"one_tet_vp2.QP");
+  {
+	VectorXd x;
+	const int rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_vp2.QP",x,1e-6,8);
+	assert_eq_ext(rlst_code,0,dir+"one_tet_vp2.QP");
+  }
 
-  rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_cone10.QP",x,1e-4,100);
-  assert_eq_ext(rlst_code,0,dir+"one_tet_cone10.QP");
+  {
+	VectorXd x;
+	/// @bug sometimes this test case will failed, that is, it convergence very slow.
+	/// One of the possible reason is that, we use tmp.setRandom() in MPRGP::specRad(...).
+	// const int rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_cone10.QP",x,1e-6,60);
+	const int rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_cone10.QP",x,1e-5,60);
+	assert_eq_ext(rlst_code,0,dir+"one_tet_cone10.QP");
+  }
 
-  rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_ball.QP",x,1e-4,100);
-  assert_eq_ext(rlst_code,0,dir+"one_tet_ball.QP");
+  {
+	VectorXd x;
+	const int rlst_code = MPRGPPlane<double>::solve(dir+"one_tet_ball.QP",x,1e-6,35);
+	assert_eq_ext(rlst_code,0,dir+"one_tet_ball.QP");
+  }
 }
 
-void testComputeLagMultipliers(const string &QP_file, const double tol){
+void testComputeLagMultipliers(const string &QP_file, const double tol, const int max_it){
 
   Eigen::SparseMatrix<double> A;
   Eigen::Matrix<double,-1,1> B;
@@ -224,29 +238,30 @@ void testComputeLagMultipliers(const string &QP_file, const double tol){
   {
 	const VVec4d tempt = planes;
 	planes.clear();
-	for (int i = 0; i < tempt.size(); ++i){
+	for (int i = 0; i < (int)tempt.size(); ++i){
 	  const Vector3d ni = planes[i].segment<3>(0);
 	  assert_in(ni.norm(), 1-1e-8, 1+1e-8);
 	  int j = 0;
-	  for ( ;j < planes.size(); ++j ){
+	  for ( ;j < (int)planes.size(); ++j ){
 		const Vector3d nj = planes[j].segment<3>(0);
 		if((ni-nj).norm() < 1e-4)
 		  break;
 	  }
-	  if( j == planes.size() )
+	  if( j == (int)planes.size() )
 		planes.push_back(tempt[i]);
 	}
 	// cout << "\n\n";
 	// const MatrixXd M = A;
 	// IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
-	// cout<< "\n\n" << setprecision(16) << M.format(OctaveFmt) << "\n\n";
+	// cout<< "\n\nA:" << setprecision(16) << M.format(OctaveFmt) << "\n\n";
   }
 
   VVVec4d planes_for_each_node;
   PlaneProjector<double>::convert(planes, planes_for_each_node, x.size()/3);
 
   PlaneProjector<double> projector(planes_for_each_node, x);
-  MPRGPPlane<double>::solve(FixedSparseMatrix<double>(A),B,projector,x,tol,2000);
+  const int rlst_code = MPRGPPlane<double>::solve(FixedSparseMatrix<double>(A),B,projector,x,tol,max_it);
+  assert_eq_ext(rlst_code,0,QP_file);
 
   const VectorXd g = A*x-B;
   const vector<vector<int> > &face_indices = projector.getFaceIndex();
@@ -268,9 +283,7 @@ void testComputeLagMultipliers(const string &QP_file, const double tol){
 	}
   }
 
-  cout<< "\ng:"<< g.norm()<< ", " << g.transpose() << "\n\n";
-  cout<< "d:"<< diff.norm() << ", " << diff.transpose() << "\n\n";
-
+  assert_le(diff.norm(), tol*5.0f);
 }
 
 void testComputeLagMultipliers(){
@@ -279,10 +292,11 @@ void testComputeLagMultipliers(){
 
   const string dir = "./test_case/data/";
 
-  // testComputeLagMultipliers(dir+"one_tet_vp.QP", 1e-6);
-  // testComputeLagMultipliers(dir+"one_tet_vp2.QP", 1e-6);
-  // testComputeLagMultipliers(dir+"one_tet_cone10.QP", 1e-6);
-  testComputeLagMultipliers(dir+"one_tet_ball.QP", 1e-6);
+  testComputeLagMultipliers(dir+"one_tet_vp.QP", 1e-6,11);
+  testComputeLagMultipliers(dir+"one_tet_vp2.QP", 1e-6,8);
+  // testComputeLagMultipliers(dir+"one_tet_cone10.QP", 1e-6,60); /// @bug
+  // testComputeLagMultipliers(dir+"one_tet_cone10.QP", 1e-5,60); /// @bug
+  testComputeLagMultipliers(dir+"one_tet_ball.QP", 1e-6,10);
 
 }
 

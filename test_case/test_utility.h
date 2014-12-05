@@ -1,7 +1,6 @@
 #ifndef _TEST_UTILITY_H_
 #define _TEST_UTILITY_H_
 
-#include <MPRGPUtility.h>
 #include "test_solver.h"
 using namespace MATH;
 
@@ -41,7 +40,7 @@ void test_io(){
   assert_le((x-x2).norm(),1e-11);
 
   assert_eq(planes2.size(), planes.size());
-  for (int i = 0; i < planes2.size(); ++i)
+  for (int i = 0; i < (int)planes2.size(); ++i)
     assert_le((planes2[i]-planes[i]).norm(),1e-11);
 
 }
