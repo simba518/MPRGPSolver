@@ -254,6 +254,10 @@ namespace MATH{
 	  return _face;
 	}
 
+	const VVVec4X &getPlanes()const{
+	  return _planes;
+	}
+
 	const vector<vector<int> > &getFaceIndex()const{
 	  return _face_indices;
 	}

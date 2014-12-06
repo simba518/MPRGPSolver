@@ -262,28 +262,7 @@ void testComputeLagMultipliers(const string &QP_file, const double tol, const in
   PlaneProjector<double> projector(planes_for_each_node, x);
   const int rlst_code = MPRGPPlane<double>::solve(FixedSparseMatrix<double>(A),B,projector,x,tol,max_it);
   assert_eq_ext(rlst_code,0,QP_file);
-
-  const VectorXd g = A*x-B;
-  const vector<vector<int> > &face_indices = projector.getFaceIndex();
-  vector<vector<double> > all_lambdas;
-  MPRGPPlane<double>::computeLagMultipliers(g,planes_for_each_node,face_indices,all_lambdas);
-
-  VectorXd diff = g;
-  assert_eq(planes_for_each_node.size(), all_lambdas.size());
-  for (size_t i = 0; i < all_lambdas.size(); ++i){
-	
-	const vector<double> &lambdas = all_lambdas[i];
-	const VVec4d &planes = planes_for_each_node[i];
-	assert_eq(lambdas.size(), planes.size());
-    for (size_t p = 0; p < lambdas.size(); ++p){
-	  const double la = lambdas[p];
-	  const Vector3d n = planes[p].segment<3>(0);
-	  assert_ge(la,0.0);
-	  diff.segment<3>(i*3) -= la*n;
-	}
-  }
-
-  assert_le(diff.norm(), tol*5.0f);
+  assert(MPRGPPlane<double>::checkResult(A,B,projector,x,tol*3.0f));
 }
 
 void testComputeLagMultipliers(){

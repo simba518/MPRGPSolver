@@ -69,7 +69,8 @@ namespace MATH{
 		}
 	  }
 
-	  WARN_LOG_COND("MPRGP is not convergent with "<< _maxIterations << " iterations."<<endl, iteration >= _maxIterations);
+	  ERROR_LOG_COND("MPRGP is not convergent with "<< iteration << " iterations."<<endl, (iteration < _maxIterations));
+	  DEBUG_FUN( printSolveInfo() );
 	  return result_code;
 	}
 
@@ -433,7 +434,7 @@ namespace MATH{
 	  return code;
 	}
 
-	// compute the lagragian multipliers.
+	// compute the lagragian multipliers, where g = Ax-B.
 	static void computeLagMultipliers(const Vec &g, const VVVec4X &planes_for_each_node, 
 									  const std::vector<std::vector<int> > &face_indices,
 									  std::vector<std::vector<T> > &all_lambdas){
@@ -445,6 +446,39 @@ namespace MATH{
 		const Vec3X gi = g.template segment<3>(i*3);
 		computeLagMultipliers(gi, planes_for_each_node[i], face_indices[i], all_lambdas[i]);
 	  }
+	}
+
+	// Compute the lagragian gradients. As input, we require lag_grad = Ax-b.
+	static void getLagGrad(const VVVec4X &planes, const vector<vector<T> > &all_lambdas, Vec &lag_grad){
+
+	  assert_eq( lag_grad.size(), (int)planes.size()*3 );
+	  assert_eq( planes.size(), all_lambdas.size() );
+	  for (size_t i = 0; i < all_lambdas.size(); ++i){
+		const vector<T> &lambdas = all_lambdas[i];
+		const VVec4X &plane = planes[i];
+		assert_eq(lambdas.size(), plane.size());
+		for (size_t p = 0; p < lambdas.size(); ++p)
+		  lag_grad.template segment<3>(i*3) -= lambdas[p]*plane[p].template segment<3>(0);
+	  }
+	}
+
+	template <typename MAT>
+	static bool checkResult(const MAT &A,const Vec &B, const PlaneProjector<T> &projector, 
+							const Vec &x,const T grad_tol, const T lambda_low_bound=0.0){
+
+	  const Vec g = A*x-B;
+	  const vector<vector<int> > &face_indices = projector.getFaceIndex();
+	  const VVVec4X &planes_for_each_node = projector.getPlanes();
+	  vector<vector<T> > all_lambdas;
+	  computeLagMultipliers(g,planes_for_each_node,face_indices,all_lambdas);
+
+	  bool valid = greaterThan(all_lambdas, lambda_low_bound);
+	  Vec lag_grad = g;
+	  getLagGrad(planes_for_each_node, all_lambdas, lag_grad);
+	  const T gnorm = lag_grad.norm();
+	  ERROR_LOG_COND("lag_grad.norm(): "<< gnorm << ", tol: "<<grad_tol, (gnorm <= grad_tol));
+	  valid &= (gnorm <= grad_tol);
+	  return valid;
 	}
 
   protected:
@@ -462,7 +496,7 @@ namespace MATH{
 		const int p = face_i[0];
 		assert_in(p, 0, (int)planes.size()-1);
 		lambdas[p] = gi.dot(planes[p].template segment<3>(0));
-		assert_ge(lambdas[p],0.0f);
+		// assert_ge(lambdas[p],0.0f);
 
 	  }else if(face_i.size() == 2){
 
@@ -481,8 +515,8 @@ namespace MATH{
 		lambdas[p0] = la[0];
 		lambdas[p1] = la[1];
 
-		assert_ge(lambdas[p0],0.0f);
-		assert_ge(lambdas[p1],0.0f);
+		// assert_ge(lambdas[p0],0.0f);
+		// assert_ge(lambdas[p1],0.0f);
 
 	  }else if(face_i.size() >= 3){
 	
@@ -505,9 +539,9 @@ namespace MATH{
 		lambdas[p1] = la[1];
 		lambdas[p2] = la[2];
 
-		assert_ge(lambdas[p0],0.0f);
-		assert_ge(lambdas[p1],0.0f);
-		assert_ge(lambdas[p2],0.0f);
+		// assert_ge(lambdas[p0],0.0f);
+		// assert_ge(lambdas[p1],0.0f);
+		// assert_ge(lambdas[p2],0.0f);
 	  }
 	}
 
