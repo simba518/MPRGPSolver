@@ -1,7 +1,8 @@
-#include "test_solver.h"
-#include "test_projection.h"
-#include "test_ActiveSet3D.h"
-#include "test_utility.h"
+// #include "test_solver.h"
+// #include "test_projection.h"
+// #include "test_ActiveSet3D.h"
+// #include "test_utility.h"
+#include "test_simulation.h"
 using namespace MATH;
 
 #include <float.h>
@@ -12,21 +13,23 @@ double ScalarUtil<double>::scalar_eps=1E-9;
 
 int main(int argc, char *argv[]){
 
-  test_io();
-  test_findClosestPoint();
-  test_findClosestPoint2();
-  test_LowerBoundProjector();
-  test_PlaneProjector();
-  test_OnePlaneProjector();
+  // test_io();
+  // test_findClosestPoint();
+  // test_findClosestPoint2();
+  // test_LowerBoundProjector();
+  // test_PlaneProjector();
+  // test_OnePlaneProjector();
 
-  test1DSolverLB();
-  test2DSolverLB();
-  test1DSolverBB();
-  test2DSolverBB();
-  testMPRGPPlaneSolver3D();
-  testMPRGPPlaneSolver3D_OnePlane();
-  testSolverFromFile();
-  testComputeLagMultipliers();
+  // test1DSolverLB();
+  // test2DSolverLB();
+  // test1DSolverBB();
+  // test2DSolverBB();
+  // testMPRGPPlaneSolver3D();
+  // testMPRGPPlaneSolver3D_OnePlane();
+  // testSolverFromFile();
+  // testComputeLagMultipliers();
+
+  testQPFromFiles();
 
   return 0;
 }
