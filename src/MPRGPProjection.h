@@ -393,14 +393,6 @@ namespace MATH{
 	  return phitphi>0.0f?phitphi:0.0f;
 	}
 
-	static VVVec4X &convert(const VVec4X &in, VVVec4X &out, const size_t num_nodes){
-	  	 
-	  out.resize(num_nodes);
-	  for(size_t i = 0; i < num_nodes; i++)
-		out[i] = in;
-	  return out;
-	}
-
   protected:
 	inline void projectToPlane(const Vec4X &p, const Vec3X &in, Vec3X &out)const{
 

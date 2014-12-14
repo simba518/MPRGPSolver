@@ -414,7 +414,7 @@ namespace MATH{
 	static int solve(const MAT &A,const Vec &B, const VVec4X &planes, Vec &x, const T tol=1e-3, const int max_it = 1000){
 
 	  VVVec4X planes_for_each_node;
-	  PlaneProjector<T>::convert(planes, planes_for_each_node, x.size()/3);
+	  convert<T>(planes, planes_for_each_node, x.size()/3);
 	  return solve(A,B,planes_for_each_node, x, tol, max_it);
 	}
 

@@ -64,6 +64,9 @@ using namespace std;
 #define OMP_PARALLEL_FOR_
 #define OMP_CRITICAL_ PRAGMA(STRINGIFY(omp critical))
 
+#include <eigen3/Eigen/Sparse>
+#include <eigen3/Eigen/Dense>
+
 namespace MATH{
 
   template <typename T>
@@ -102,7 +105,17 @@ namespace MATH{
 	return c;
   }
 
-#define VVEC4X_T vector<Eigen::Matrix<T,4,1>, Eigen::aligned_allocator<Eigen::Matrix<T,4,1> > >
+#define VVEC4X_T std::vector<Eigen::Matrix<T,4,1>, Eigen::aligned_allocator<Eigen::Matrix<T,4,1> > >
+#define VVVEC4X_T std::vector<VVEC4X_T >
+
+  template<typename T>
+  VVVEC4X_T &convert(const VVEC4X_T &in, VVVEC4X_T &out, const size_t num_nodes){
+	  	 
+	out.resize(num_nodes);
+	for(size_t i = 0; i < num_nodes; i++)
+	  out[i] = in;
+	return out;
+  }
 
   // save the problem to the file: A, B, x0 and the constraints, i.e planes.
   // the problem is: 
@@ -111,7 +124,8 @@ namespace MATH{
   inline bool writeQP(const Eigen::SparseMatrix<T> &A,const Eigen::Matrix<T,-1,1> &B,
 					  const VVEC4X_T &planes,
 					  const Eigen::Matrix<T,-1,1> &x0,const string file_name){
-	  
+
+	// open file
 	ofstream out;
 	out.open(file_name.c_str());
 	if (!out.is_open()){
@@ -119,11 +133,13 @@ namespace MATH{
 	  return false;
 	}
 
-	// write A
+	// write dimensions
 	out << "dimension " << A.rows() << "\n";
 	out << "planes "<< planes.size() << "\n";
 	out << "A\n";
 	out << "non_zeros "<< A.nonZeros() << "\n";
+
+	// write A
 	for(int k=0;k<A.outerSize();++k)
 	  for(typename Eigen::SparseMatrix<T>::InnerIterator it(A,k);it;++it)
 		out << it.row()<<"\t"<<it.col()<<"\t"<<setprecision(12)<<it.value()<<"\n";
@@ -154,11 +170,60 @@ namespace MATH{
 	return succ;
   }
 
+  template<typename T>
+  inline bool writeQP(const Eigen::SparseMatrix<T> &A,const Eigen::Matrix<T,-1,1> &B,
+					  const VVVEC4X_T &planes_for_each_node,
+					  const Eigen::Matrix<T,-1,1> &x0,const string file_name){
+
+	// open file
+	ofstream out(file_name.c_str(), ios::out|ios::binary);
+	if (!out.is_open()){
+	  ERROR_LOG("failed to open the file: "<<file_name);
+	  return false;
+	}
+	
+	// write A
+	const size_t A_rows = A.rows();
+	const size_t A_nz = A.nonZeros();
+	out.write((char*)&(A_rows),sizeof(A_rows));
+	out.write((char*)&(A_nz),sizeof(A_nz));
+	std::vector<Eigen::Triplet<T> > A_data;
+	A_data.reserve(A.nonZeros());
+	for ( int k = 0; k < A.outerSize(); ++k ){
+	  for ( typename Eigen::SparseMatrix<T>::InnerIterator it(A,k); it; ++it )
+		A_data.push_back(Eigen::Triplet<T>(it.row(), it.col(), it.value()));
+	}
+	out.write((char*)&A_data[0],sizeof(Eigen::Triplet<T>)*A_nz);
+	  
+	// write B
+	assert_eq(B.size(), A.rows());
+	out.write((char*)&B[0],sizeof(T)*B.size());
+
+	// write P
+	assert_eq(planes_for_each_node.size()*3,A.rows());
+	for (size_t i = 0; i < planes_for_each_node.size(); ++i){
+	  const size_t p = planes_for_each_node[i].size();
+	  out.write( (char*)&p, sizeof(p) );
+	  for (size_t j = 0; j < p; ++j)
+		out.write((char*)&(planes_for_each_node[i][j][0]), sizeof(T)*4);
+	}
+
+	// write x0
+	assert_eq(x0.size(), A.rows());
+	out.write((char*)&x0[0],sizeof(T)*x0.size());
+
+	const bool succ = out.good();
+	out.close();
+	return succ;
+  }
+
   // load the problem from file
   template<typename T>
   inline bool loadQP(Eigen::SparseMatrix<T> &A,Eigen::Matrix<T,-1,1> &B,
 					 VVEC4X_T &planes,
 					 Eigen::Matrix<T,-1,1> &x0,const string file_name){
+
+	// open file
 	ifstream in;
 	in.open(file_name.c_str());
 	if (!in.is_open()){
@@ -187,7 +252,7 @@ namespace MATH{
 	tri.reserve(nnz);
 	for (int i = 0; i < nnz; ++i){
 	  int row,col;
-	  double value;
+	  T value;
 	  in >> row >> col >> value;
 	  assert_in(row,0,n-1);
 	  assert_in(col,0,n-1);
@@ -215,6 +280,62 @@ namespace MATH{
 	const bool succ = in.good();
 	in.close();
 	return succ;
+  }
+
+  template<typename T>
+  inline bool loadQP(Eigen::SparseMatrix<T> &A,Eigen::Matrix<T,-1,1> &B,
+					 VVVEC4X_T &planes_for_each_node,
+					 Eigen::Matrix<T,-1,1> &x0,const string file_name){
+
+	// open file
+	ifstream in(file_name.c_str(), ios::in|ios::binary);
+	if (!in.is_open()){
+	  ERROR_LOG("failed to open the file: "<<file_name);
+	  return false;
+	}
+
+	// read A
+	size_t rows = 0;
+	size_t nnz = 0;
+	in.read((char*)&(rows),sizeof(rows));
+	in.read((char*)&(nnz),sizeof(nnz));
+	A.resize(rows, rows);
+	if(nnz > 0){
+	  A.reserve(nnz);
+	  std::vector<Eigen::Triplet<T> > tri(nnz);
+	  in.read((char*)&tri[0], sizeof(Eigen::Triplet<T>)*tri.size());
+	  A.setFromTriplets(tri.begin(), tri.end());
+	}else{
+	  A.setZero();
+	}
+	  
+	// read B
+	B.resize(A.rows());
+	if(B.size() > 0){
+	  in.read((char*)&B[0],sizeof(T)*B.size());
+	}
+
+	// read P
+	assert_eq(rows%3,0);
+	planes_for_each_node.resize(rows/3);
+	for (size_t i = 0; i < planes_for_each_node.size(); ++i){
+	  size_t p = 0;
+	  in.read((char*)&p, sizeof(p));
+	  planes_for_each_node[i].resize(p);
+	  for (size_t j = 0; j < p; ++j)
+		in.read((char*)&(planes_for_each_node[i][j][0]), sizeof(T)*4);
+	}
+
+	// read x0
+	x0.resize(A.rows());
+	if(x0.size() > 0){
+	  in.read((char*)&x0[0],sizeof(T)*x0.size());
+	}
+
+	const bool succ = in.good();
+	in.close();
+	return succ;
+
   }
 
   // check the validation of the lagragian multipliers

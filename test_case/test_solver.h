@@ -2,36 +2,8 @@
 #define _TEST_SOLVER_H_
 
 #include <MPRGPSolver.h>
-#include <iostream>
-using namespace std;
+#include "test_utility.h"
 using namespace MATH;
-
-typedef Eigen::Matrix<double,4,1> Vec4d;
-typedef vector<Vec4d,Eigen::aligned_allocator<Vec4d> > VVec4d;
-typedef vector<VVec4d > VVVec4d;
-
-template <class T>
-const SparseMatrix<T> &createFromDense(const Matrix<T,-1,-1> &M, SparseMatrix<T> &S, const T tol=1e-16){
-  
-  typedef Triplet<T> E_Triplet;
-  std::vector<E_Triplet> striplet;
-  striplet.reserve(M.size());
-  for (int i = 0; i < M.rows(); ++i) {
-	for (int j = 0; j < M.cols(); ++j) {
-	  if ( fabs(M(i,j)) >= tol )
-		striplet.push_back( E_Triplet(i,j,M(i,j)) );
-	}
-  }
-  S.resize(M.rows(), M.cols());
-  S.setFromTriplets(striplet.begin(), striplet.end());
-  return S;
-}
-
-template <class T> 
-const SparseMatrix<T> createFromDense(const Matrix<T,-1,-1> &M, const T tol=1e-16){
-  SparseMatrix<T> S;
-  return createFromDense(M,S,tol);
-}
 
 void test1DSolverLB(){
 
@@ -257,7 +229,7 @@ void testComputeLagMultipliers(const string &QP_file, const double tol, const in
   }
 
   VVVec4d planes_for_each_node;
-  PlaneProjector<double>::convert(planes, planes_for_each_node, x.size()/3);
+  convert<double>(planes, planes_for_each_node, x.size()/3);
 
   PlaneProjector<double> projector(planes_for_each_node, x);
   const int rlst_code = MPRGPPlane<double>::solve(FixedSparseMatrix<double>(A),B,projector,x,tol,max_it);
