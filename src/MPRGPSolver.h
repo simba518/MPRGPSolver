@@ -162,46 +162,48 @@ namespace MATH{
 	  const T residual = gp.norm();
 	  assert_le(phi.dot(beta),ScalarUtil<T>::scalar_eps*residual);
 
-	  DEBUG_LOG(setprecision(10)<<"||g||: "<<g.norm());
-	  DEBUG_LOG(setprecision(10)<<"||beta||: "<<beta.norm());
-	  DEBUG_LOG(setprecision(10)<<"||phi||: "<<phi.norm());
-	  DEBUG_LOG(setprecision(10)<<"residual: "<<residual);
-	  DEBUG_LOG("g: "<<g.transpose());
-	  DEBUG_LOG("phi: "<<phi.transpose());
-	  DEBUG_LOG("beta: "<<beta.transpose());
+	  // DEBUG_LOG(setprecision(10)<<"||g||: "<<g.norm());
+	  // DEBUG_LOG(setprecision(10)<<"||beta||: "<<beta.norm());
+	  // DEBUG_LOG(setprecision(10)<<"||phi||: "<<phi.norm());
+	  // DEBUG_LOG(setprecision(10)<<"residual: "<<residual);
+	  // DEBUG_LOG("g: "<<g.transpose());
+	  // DEBUG_LOG("phi: "<<phi.transpose());
+	  // DEBUG_LOG("beta: "<<beta.transpose());
 
 	  return residual;
 	}
 	inline bool proportional(const Vec &result)const{
+	  
 	  //test proportional x: beta*beta <= gamma*gamma*phi*phiTilde
 	  const T beta_norm = beta.norm();
 	  const T left = beta_norm*beta_norm;  assert_eq(left, left);
-	  const T right = gamma*gamma*projector.PHITPHI(result,alpha_bar,phi);  assert_eq(right, right);
+	  const T phitphi = projector.PHITPHI(result,alpha_bar,phi);
+	  const T right = gamma*gamma*phitphi; assert_eq(right, right);
 	  return left <= right;
 	}
-	inline void CGStep(const Vec &AP, T alphaCG, Vec &result){
+	inline void CGStep(const Vec &AP, T alpha_cg, Vec &result){
 
 	  DEBUG_LOG("cg_step");
 	  num_cg ++;
 
-	  assert_eq(alphaCG, alphaCG);
-	  result -= alphaCG*p;
-	  g -= alphaCG*AP;
+	  assert_eq(alpha_cg, alpha_cg);
+	  result -= alpha_cg*p;
+	  g -= alpha_cg*AP;
 	  projector.PHI(g, phi);  assert_ge(g.dot(phi),0);
 	  precond.solve(phi,z);   assert_eq(z, z);  assert_ge(g.dot(z),0);
 	  const T beta = (z.dot(AP)) / (p.dot(AP)); assert_eq(beta, beta);
 	  p = z-beta*p;
 	}
-	inline void ExpStep(const Vec &AP, T alphaF, Vec &result){
+	inline void ExpStep(const Vec &AP, T alpha_f, Vec &result){
 
 	  DEBUG_LOG("exp_step");
 	  num_exp ++;
 	  // DEBUG_FUN(fun_val = A.funcValue(result, B));
 
-	  assert_eq(alphaF, alphaF);
+	  assert_eq(alpha_f, alpha_f);
 	  Vec &xTmp=beta;
-	  xTmp = result-alphaF*p; // DEBUG_FUN({const T fun = A.funcValue(xTmp, B); assert_le(fun, fun_val)} );
-	  g -= alphaF*AP;
+	  xTmp = result-alpha_f*p; // DEBUG_FUN({const T fun = A.funcValue(xTmp, B); assert_le(fun, fun_val)} );
+	  g -= alpha_f*AP;
 	  projector.DECIDE_FACE(xTmp);
 	  projector.PHI(g, phi);
 	  xTmp -= alpha_bar*phi; // DEBUG_FUN({const T fun = A.funcValue(xTmp, B); assert_le(fun, fun_val)} );
@@ -222,28 +224,73 @@ namespace MATH{
 	  Vec& AD=gp;
 	  A.multiply(D,AD);
 	  const T ddad = D.dot(AD); assert_ne(ddad,0);
-	  const T alphaCG = (g.dot(D)) / ddad; assert_eq(alphaCG, alphaCG);
-	  result -= alphaCG*D;
+	  const T alpha_cg = (g.dot(D)) / ddad; assert_eq(alpha_cg, alpha_cg);
+	  result -= alpha_cg*D;
 
 	  Vec& xTmp=beta;
 	  xTmp = result;
 	  projector.project(xTmp,result);
-	  g -= alphaCG*AD;
+	  g -= alpha_cg*AD;
 	  projector.DECIDE_FACE(result);
 	  projector.PHI(g, phi);
 	  precond.solve(phi,z); assert_eq(z, z);
 	  p = z;
 	}
 
+	inline T projectFunValue(const Vec &x)const{
+	  Vec tempx;
+	  projector.DECIDE_FACE(x);
+	  projector.project(x, tempx);
+	  return A.funcValue(tempx, B);
+	}
 	inline void ExpMonotonicStep(Vec &result){
 
 	  DEBUG_LOG("exp_step");
 	  num_exp ++;
+
+	  Vec y;
+	  projector.DECIDE_FACE(result);
+	  projector.project(result, y);
+	  A.multiply(y,g);
+	  g -= B;
+	  projector.DECIDE_FACE(y);
+	  projector.PHI(g, phi);
+	  y -= alpha_bar*phi;
+	  projector.project(y, result);
+
+	  A.multiply(result,g);
+	  g -= B;
+	  projector.DECIDE_FACE(result);
+	  projector.PHI(g, phi); 
+
+	  precond.solve(phi,z); assert_eq(z, z);
+	  p = z;
 	}
 	inline T CGMonotonicStep(Vec &result){
 
-	  DEBUG_LOG("cg_step");
-	  num_cg ++;
+	  Vec AP;
+	  A.multiply(p, AP);
+	  const T pd = p.dot(AP); assert_ge(pd, 0); // pd = p^t*A*p > 0
+	  T alpha_cg = (z.dot(g)) / pd; assert_ge(alpha_cg, 0);
+
+	  Vec y = result - alpha_cg*p;
+	  T fy = projectFunValue(y);
+	  T fx = projectFunValue(result);
+
+	  while( proportional(result) && residual_out > tolerance_factor
+			 && fy<=fx && iteration < max_iterations ){
+
+		CGStep(AP, alpha_cg, result);
+		residual_out = computeGradients(g);
+		A.multiply(p, AP);
+		const T pd = p.dot(AP); assert_ge(pd, 0); // pd = p^t*A*p > 0
+		alpha_cg = (z.dot(g)) / pd; assert_ge(alpha_cg, 0);
+		y = result - alpha_cg*p;
+	    fy = projectFunValue(y);
+	    fx = projectFunValue(result);
+		iteration ++;
+	  }
+
 	  return residual_out;
 	}
 
@@ -290,7 +337,7 @@ namespace MATH{
 	  for( MB::iteration = 0; MB::iteration < MB::max_iterations; MB::iteration++ ){
 
 	  	DEBUG_LOG("mprgp step "<<MB::iteration);
-	  	DEBUG_LOG(setprecision(12)<<"func: "<<(fun_val=MB::A.funcValue(result,MB::B)));
+	  	DEBUG_LOG(setprecision(12)<<"func: "<<(MB::fun_val=MB::A.funcValue(result,MB::B)));
 
 	  	MB::residual_out = this->computeGradients(MB::g);
 
@@ -305,14 +352,14 @@ namespace MATH{
 	  	  Vec& AP=MB::gp;
 	  	  MB::A.multiply(MB::p,AP);
 	  	  const T pd = MB::p.dot(AP); assert_ge(pd, 0); // pd = p^t*A*p > 0
-	  	  const T alphaCG = (MB::z.dot(MB::g)) / pd; assert_ge(alphaCG, 0);
-	  	  const T alphaF = MB::projector.stepLimit(result,MB::p,alphaCG); 
-		  assert_ge(alphaF, 0);
+	  	  const T alpha_cg = (MB::z.dot(MB::g)) / pd; assert_ge(alpha_cg, 0);
+	  	  const T alpha_f = MB::projector.stepLimit(result,MB::p,alpha_cg); 
+		  assert_ge(alpha_f, 0);
 
-	  	  if(alphaCG <= alphaF){
- 	  		this->CGStep(AP, alphaCG, result);
+	  	  if(alpha_cg <= alpha_f){
+ 	  		this->CGStep(AP, alpha_cg, result);
 	  	  }else{
-	  		this->ExpStep(AP, alphaF, result);
+	  		this->ExpStep(AP, alpha_f, result);
 	  	  }
 	  	}else{
 	  	  this->PropStep(result);
@@ -341,7 +388,7 @@ namespace MATH{
 
   	  this->initialize(result);
 
-  	  for( MB::iteration = 0; MB::iteration < MB::max_iterations; MB::iteration++ ){
+  	  for( MB::iteration = 0; MB::iteration < MB::max_iterations; ){
 
   	  	MB::residual_out = this->computeGradients(MB::g);
   	  	if( MB::residual_out <= MB::tolerance_factor )
@@ -355,16 +402,23 @@ namespace MATH{
 
   		if ( !(isFeasible(MB::projector.getPlanes(), result)) ){
   		  this->ExpMonotonicStep(result);
+		  MB::iteration ++;
   	  	}else if( !(MB::proportional(result)) ){
   		  MB::A.multiply(result, MB::g);
   		  MB::g -= MB::B;
   	  	  this->PropStep(result);
+		  MB::iteration ++;
   	  	}
   	  }
 
+	  MB::z = result;
+	  MB::projector.project(MB::z, result);
+	  
   	  MB::result_code = MB::residual_out <= MB::tolerance_factor ? 0 : -1;
   	  MB::iterations_out = MB::iteration;
   	  ERROR_LOG_COND("MPRGP is not convergent with "<< MB::iteration << " iterations."<<endl, (MB::iteration < MB::max_iterations));
+
+	  DEBUG_FUN(MB::projector.DECIDE_FACE(result));
   	  DEBUG_FUN( this->printSolveInfo() );
   	  return MB::result_code;
   	}
@@ -469,8 +523,8 @@ namespace MATH{
 	  assert_eq(A.rows(),B.size());
 	  assert_eq(A.rows(),x.size());
 	  DiagonalInFacePreconSolver<T,MAT> precond(A, projector.getFace());
-	  typedef MPRGP<T, MAT, PlaneProjector<T>, DiagonalInFacePreconSolver<T,MAT> > MPRGPSolver;
-	  // typedef MPRGPMonotonic<T, MAT, PlaneProjector<T>, DiagonalInFacePreconSolver<T,MAT> > MPRGPSolver;
+	  // typedef MPRGP<T,MAT,PlaneProjector<T>,DiagonalInFacePreconSolver<T,MAT> > MPRGPSolver;
+	  typedef MPRGPMonotonic<T, MAT, PlaneProjector<T>, DiagonalInFacePreconSolver<T,MAT> > MPRGPSolver;
 	  MPRGPSolver solver(A, B, precond, projector, max_it, tol);
 	  const int rlst_code = solver.solve(x);
 	  return rlst_code;

@@ -30,6 +30,7 @@ int main(int argc, char *argv[]){
   // testComputeLagMultipliers();
 
   // testFuncValue();
+  // testNoConQP();
 
   testQPFromFiles();
 

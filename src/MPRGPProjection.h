@@ -381,7 +381,7 @@ namespace MATH{
 
 	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi){
 
-	  assert_ext(isFeasible(_planes,x),"x="<<x.transpose());
+	  // assert_ext(isFeasible(_planes,x),"x="<<x.transpose());
 	  assert_gt(alphaBar, ScalarUtil<T>::scalar_eps);
 	  assert_eq(x.size() % 3,0);
 	  assert_eq(x.size(), phi.size());
@@ -389,7 +389,7 @@ namespace MATH{
 	  Vec px;
 	  project(x_alpha_phi, px);
 	  const T phitphi = ((x-px).dot(phi))*(1.0/alphaBar);
-	  assert_ge(phitphi,-ScalarUtil<T>::scalar_eps);
+	  // assert_ge(phitphi,-ScalarUtil<T>::scalar_eps);
 	  return phitphi>0.0f?phitphi:0.0f;
 	}
 
