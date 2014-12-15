@@ -5,7 +5,7 @@
 #include "test_utility.h"
 using namespace MATH;
 
-void testQPFromFile(const string &file_name,const double tol, const int max_it){
+double testQPFromFile(const string &file_name,const double tol, const int max_it){
 
   const string dir = "./test_case/data/";
   
@@ -17,14 +17,15 @@ void testQPFromFile(const string &file_name,const double tol, const int max_it){
   cout << "dimension: " << B.size() << endl;
 
   PlaneProjector<double> projector(planes_for_each_node, x);
-  FixedSparseMatrix<double> SA(A);
-  cout<< "in: " << x.norm() << endl;
-  const int code = MPRGPPlane<double>::solve(SA,B,planes_for_each_node,x,tol,max_it);
-  cout<< "out: " << x.norm() << endl;
-
+  const FixedSparseMatrix<double> SA(A);
+  const int code = MPRGPPlane<double>::solve(SA,B,projector,x,tol,max_it);
   ERROR_LOG_COND("MPRGP is not convergent, result code is "<<code<<endl,code==0);
   DEBUG_FUN( MPRGPPlane<double>::checkResult(A, B, projector, x, tol) );
 
+  const double fun = (x.dot(A*x))*0.5f-x.dot(B);
+  cout<< setprecision(12) << "function value: " << fun << endl;
+  assert( isFeasible(planes_for_each_node, x) );
+  return fun;
 }
 
 void testQPFromFiles(){
@@ -34,7 +35,7 @@ void testQPFromFiles(){
   const string qp_fold = "/dragon_asia_qp/";
   const double tol = 1e-4;
   const int max_it = 1000;
-  const int T = 150;
+  const int T = 20;
 
   {
 	cout << "mprgp tol: " << tol << endl;
@@ -43,14 +44,45 @@ void testQPFromFiles(){
 	cout << "total frames: "<< T << endl;
   }
 
-  for (int frame = 0; frame < 150; ++frame){
+  vector<double> desired_func_values;
+  {
+  	const string dir = "./test_case/data/";
+  	const string fname = dir + qp_fold+"/0resulting_func_values.txt";
+  	ifstream in(fname.c_str());
+  	assert_ext( in.is_open(), fname );
+  	int n = 0;
+  	in >> n;
+  	assert_in(T, 0, n);
+  	desired_func_values.resize(n);
+  	for (int i = 0; i < n; ++i){
+  	  in >> desired_func_values[i];
+  	  assert_eq(desired_func_values[i], desired_func_values[i]);
+  	}
+  	in.close();
+  }
+
+  for (int frame = 0; frame < T; ++frame){
 
 	cout << "step: " << frame << endl;
 	ostringstream ossm_bin;
 	ossm_bin << qp_fold + "/frame_" << frame << "_it_0.b";
-	testQPFromFile( ossm_bin.str(), tol, max_it);
+	const double func_value = testQPFromFile( ossm_bin.str(), tol, max_it);
+	assert_le(func_value, desired_func_values[frame]+1e-9);
   }
 
+}
+
+void testFuncValue(){
+
+  cout << "testFuncValue" << endl;
+  const double f1 = testQPFromFile( "/dragon_asia_qp/frame_0_it_0.b", 1e-4, 1000);
+  assert_le(f1, -274.64494596);
+
+  const double f2 = testQPFromFile( "/dragon_asia_qp/frame_3_it_0.b", 1e-4, 1000);
+  assert_le(f2, -272.47066022);
+
+  const double f3 = testQPFromFile( "/dragon_asia_qp/frame_5_it_0.b", 1e-4, 1000);
+  assert_le(f3, -270.5750235);
 }
 
 #endif /* _TEST_SIMULATION_H_ */

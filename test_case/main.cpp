@@ -29,6 +29,8 @@ int main(int argc, char *argv[]){
   // testSolverFromFile();
   // testComputeLagMultipliers();
 
+  // testFuncValue();
+
   testQPFromFiles();
 
   return 0;
