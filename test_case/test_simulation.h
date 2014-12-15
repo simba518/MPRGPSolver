@@ -21,16 +21,33 @@ double testQPFromFile(const string &file_name,const double tol, const int max_it
 	planes_for_each_node.resize(n);
   }
 
+  const double fun0 = (x.dot(A*x))*0.5f-x.dot(B);
+  const double norm0 = (A*x-B).norm();
+
   PlaneProjector<double> projector(planes_for_each_node, x);
   const FixedSparseMatrix<double> SA(A);
   const int code = MPRGPPlane<double>::solve(SA,B,projector,x,tol,max_it);
   ERROR_LOG_COND("MPRGP is not convergent, result code is "<<code<<endl,code==0);
   DEBUG_FUN( MPRGPPlane<double>::checkResult(A, B, projector, x, tol) );
-
-  const double fun = (x.dot(A*x))*0.5f-x.dot(B);
-  cout<< setprecision(12) << "function value: " << fun << endl;
   assert( isFeasible(planes_for_each_node, x) );
-  return fun;
+
+  const double fun1 = (x.dot(A*x))*0.5f-x.dot(B);
+  cout<< setprecision(12) << "function value: " << fun1 << endl;
+
+  {
+	// check norm and function value
+	SimplicialCholesky<SparseMatrix<double> > sol(A);
+	const VectorXd xx = sol.solve(B);
+	const double norm1 = (A*x-B).norm();
+	const double norm2 = (A*xx-B).norm();
+	const double fun2 = (xx.dot(A*xx))*0.5f-xx.dot(B);
+	assert_lt(norm1, norm0);
+	assert_lt(fun1, fun0);
+	assert_le(norm2, norm1);
+	assert_le(fun2, fun1);
+  }
+
+  return fun1;
 }
 
 void testQPFromFiles(const string qp_fold,const double tol,const int max_it,const int T){
@@ -83,14 +100,17 @@ void testQPFromFiles(){
 void testFuncValue(){
 
   cout << "testFuncValue" << endl;
-  const double f1 = testQPFromFile( "/dragon_asia_qp/frame_0_it_0.b", 1e-4, 1000);
+  const double f1 = testQPFromFile( "/dragon_asia_qp/frame_0_it_0.b", 1e-4, 196);
   assert_le(f1, -274.64494596);
 
-  const double f2 = testQPFromFile( "/dragon_asia_qp/frame_3_it_0.b", 1e-4, 1000);
-  assert_le(f2, -272.47066022);
+  const double f2 = testQPFromFile( "/dragon_asia_qp/frame_3_it_0.b", 1e-4, 258);
+  assert_le(f2, -272.47066019);
 
-  const double f3 = testQPFromFile( "/dragon_asia_qp/frame_5_it_0.b", 1e-4, 1000);
+  const double f3 = testQPFromFile( "/dragon_asia_qp/frame_5_it_0.b", 1e-4, 376);
   assert_le(f3, -270.5750235);
+
+  const double f4 = testQPFromFile( "/dragon_asia_qp/frame_78_it_0.b", 1e-4, 371);
+  assert_le(f4, -103.38746011);
 }
 
 void testNoConQP(){
