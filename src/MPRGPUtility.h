@@ -346,7 +346,7 @@ namespace MATH{
 	for (size_t i = 0; i < all_lambdas.size() && valid; ++i){
 	  const vector<T> &lambdas = all_lambdas[i];
 	  for (size_t p = 0; p < lambdas.size() && valid; ++p){
-		ERROR_LOG_COND("i = "<<i<<", p = "<<p<<", lambda = "<<lambdas[p]<<", tol: "<<tol,(lambdas[p]>=tol));
+		ERROR_LOG_COND("i = "<<i<<", p = "<<p <<", tol: "<<tol <<"\nlambda = "<<lambdas[p]<<"\n",(lambdas[p]>=tol));
 		valid = (lambdas[p] >= tol);
 	  }
 	}

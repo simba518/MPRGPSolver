@@ -68,6 +68,28 @@ def averageInt(log_file,key):
         n = len(data)
     return str(s/n)
 
+def averageFloat(log_file,key):
+    s = 0
+    data = grepNumberWithKey(log_file,key)
+    for var in data:
+        s = s + float(var)
+    n = 1;
+    if len(data) > 0:
+        n = len(data)
+    return str( '%.3g'%(s/n) )
+
+def minFloat(log_file,key):
+    data = grepNumberWithKey(log_file,key)
+    if len(data) > 0:
+        return str( '%.3g'%min(data) )
+    return str(0)
+
+def maxFloat(log_file,key):
+    data = grepNumberWithKey(log_file,key)
+    if len(data) > 0:
+        return str( '%.3g'%max(data) )
+    return str(0)
+
 def grep_and_save_fig(log_file,key_list,label_list,fig_name,use_log=False,use_number_pos=False,number_position=-1):
     for i in range(0,len(key_list)):
         data = grepNumberWithKey(log_file,key_list[i],use_number_pos,number_position)
@@ -109,8 +131,12 @@ for log_f in log_fs:
     changeElements(tempt,"#mprgp-tol#", grepFloat(log_f, "mprgp tol:"))
 
     changeElements(tempt,"#non-convergent#", str(count(log_f,"MPRGP is not convergent")))
-    changeElements(tempt,"#failed-lambda#", str(count(log_f,", lambda = ")))
-    changeElements(tempt,"#failed-lag-grad#", str(count(log_f,"lag_grad.norm()")))
+    changeElements(tempt,"#failed-lambda#", str(count(log_f,"lambda = ")))
+    changeElements(tempt,"#av-lambda#", str(averageFloat(log_f,"lambda = ")))
+    changeElements(tempt,"#max-lambda#", str(minFloat(log_f,"lambda = ")))
+    changeElements(tempt,"#failed-lag-grad#", str(count(log_f,"lag_grad.norm():")))
+    changeElements(tempt,"#av-grad#", str(averageFloat(log_f,"lag_grad.norm():")))
+    changeElements(tempt,"#max-grad#", str(maxFloat(log_f,"lag_grad.norm():")))
 
     changeElements(tempt,"#total-cg#", sumInt(log_f,"cg steps: "))
     changeElements(tempt,"#total-exp#", sumInt(log_f,"exp steps: "))

@@ -613,7 +613,7 @@ namespace MATH{
 	  Vec lag_grad = g;
 	  getLagGrad(planes_for_each_node, all_lambdas, lag_grad);
 	  const T gnorm = lag_grad.norm();
-	  ERROR_LOG_COND("lag_grad.norm(): "<< gnorm << ", tol: "<<grad_tol, (gnorm <= grad_tol));
+	  ERROR_LOG_COND("lag_grad.norm(): "<< gnorm << "\ntol: "<<grad_tol, (gnorm <= grad_tol));
 	  valid &= (gnorm <= grad_tol);
 	  return valid;
 	}
