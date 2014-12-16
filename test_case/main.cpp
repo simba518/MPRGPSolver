@@ -29,10 +29,10 @@ int main(int argc, char *argv[]){
   // testSolverFromFile();
   // testComputeLagMultipliers();
 
-  testFuncValue();
+  // testFuncValue();
   // testNoConQP();
 
-  // testQPFromFiles();
+  testQPFromFiles();
 
   return 0;
 }

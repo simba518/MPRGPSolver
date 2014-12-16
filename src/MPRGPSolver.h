@@ -153,19 +153,20 @@ namespace MATH{
 	  result_code = -1;
 	  num_cg = num_exp = numprop = iteration = 0;
 	}
-	inline T computeGradients(const Vec &g){
+	inline T computeGradients(const Vec &g, const bool comp_phi = true){
 
 	  // DEBUG_FUN(assert(printFace()));
-	  projector.PHI(g,phi);
+	  if (comp_phi)
+		projector.PHI(g,phi);
 	  projector.BETA(g,beta,phi);
 	  gp = phi+beta;
 	  const T residual = gp.norm();
 	  assert_le(phi.dot(beta),ScalarUtil<T>::scalar_eps*residual);
 
-	  // DEBUG_LOG(setprecision(10)<<"||g||: "<<g.norm());
-	  // DEBUG_LOG(setprecision(10)<<"||beta||: "<<beta.norm());
-	  // DEBUG_LOG(setprecision(10)<<"||phi||: "<<phi.norm());
-	  // DEBUG_LOG(setprecision(10)<<"residual: "<<residual);
+	  DEBUG_LOG(setprecision(10)<<"||g||: "<<g.norm());
+	  DEBUG_LOG(setprecision(10)<<"||beta||: "<<beta.norm());
+	  DEBUG_LOG(setprecision(10)<<"||phi||: "<<phi.norm());
+	  DEBUG_LOG(setprecision(10)<<"residual: "<<residual);
 	  // DEBUG_LOG("g: "<<g.transpose());
 	  // DEBUG_LOG("phi: "<<phi.transpose());
 	  // DEBUG_LOG("beta: "<<beta.transpose());
@@ -238,8 +239,7 @@ namespace MATH{
 	}
 
 	inline T projectFunValue(const Vec &x)const{
-	  Vec tempx;
-	  projector.DECIDE_FACE(x);
+	  static Vec tempx; /// @todo
 	  projector.project(x, tempx);
 	  return A.funcValue(tempx, B);
 	}
@@ -248,8 +248,6 @@ namespace MATH{
 	  DEBUG_LOG("exp_step");
 	  num_exp ++;
 
-	  Vec y;
-	  projector.DECIDE_FACE(result);
 	  projector.project(result, y);
 	  A.multiply(y,g);
 	  g -= B;
@@ -266,28 +264,39 @@ namespace MATH{
 	  precond.solve(phi,z); assert_eq(z, z);
 	  p = z;
 	}
-	inline T CGMonotonicStep(Vec &result){
+	inline T CGMonotonicStep(Vec &result, bool &result_is_prop){
 
-	  Vec AP;
+	  Vec &AP=gp;
 	  A.multiply(p, AP);
 	  const T pd = p.dot(AP); assert_ge(pd, 0); // pd = p^t*A*p > 0
 	  T alpha_cg = (z.dot(g)) / pd; assert_ge(alpha_cg, 0);
 
-	  Vec y = result - alpha_cg*p;
+	  y = result - alpha_cg*p;
 	  T fy = projectFunValue(y);
-	  T fx = projectFunValue(result);
+	  T fx = A.funcValue(result, B);
+	  assert( isFeasible(projector.getPlanes(), result) );
 
-	  while( proportional(result) && residual_out > tolerance_factor
+	  result_is_prop = true;
+	  while( result_is_prop && residual_out > tolerance_factor
 			 && fy<=fx && iteration < max_iterations ){
 
-		CGStep(AP, alpha_cg, result);
-		residual_out = computeGradients(g);
+		result = y;
+		g -= alpha_cg*AP;
+		projector.PHI(g, phi);  assert_ge(g.dot(phi),0);
+		precond.solve(phi,z);   assert_eq(z, z);  assert_ge(g.dot(z),0);
+		const T beta = (z.dot(AP)) / (p.dot(AP)); assert_eq(beta, beta);
+		p = z-beta*p;
+		residual_out = computeGradients(g, false);
+		result_is_prop = proportional(result);
+
 		A.multiply(p, AP);
 		const T pd = p.dot(AP); assert_ge(pd, 0); // pd = p^t*A*p > 0
-		alpha_cg = (z.dot(g)) / pd; assert_ge(alpha_cg, 0);
-		y = result - alpha_cg*p;
+		alpha_cg = (z.dot(g))/pd; assert_ge(alpha_cg, 0);
+		y = result-alpha_cg*p;
+	    fx = fy;
 	    fy = projectFunValue(y);
-	    fx = projectFunValue(result);
+
+		num_cg ++;
 		iteration ++;
 	  }
 
@@ -309,7 +318,7 @@ namespace MATH{
 	PROJECTOIN &projector;
 	
 	//temporary
-	Vec g,p,z,beta,phi,gp;
+	Vec g,p,z,beta,phi,gp,y;
 	size_t iterations_out;
 	T residual_out;
 
@@ -394,16 +403,17 @@ namespace MATH{
   	  	if( MB::residual_out <= MB::tolerance_factor )
   	  	  break;
 
-  	  	if( MB::proportional(result) )
-  		  MB::residual_out = this->CGMonotonicStep(result);
+		bool result_is_prop = MB::proportional(result);
+  	  	if(result_is_prop)
+  		  MB::residual_out = this->CGMonotonicStep(result, result_is_prop);
 
   	  	if( MB::residual_out <= MB::tolerance_factor )
   	  	  break;
 
-  		if ( !(isFeasible(MB::projector.getPlanes(), result)) ){
+  		if ( !(isFeasible(MB::projector.getPlanes(), MB::y)) ){
   		  this->ExpMonotonicStep(result);
 		  MB::iteration ++;
-  	  	}else if( !(MB::proportional(result)) ){
+  	  	}else if( !result_is_prop ){
   		  MB::A.multiply(result, MB::g);
   		  MB::g -= MB::B;
   	  	  this->PropStep(result);

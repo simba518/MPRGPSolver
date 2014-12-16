@@ -1,18 +1,3 @@
-\begin{figure}
-  \centering
-  \subfigure[iteration curves] { \label{fig:b}
-    \includegraphics[width=0.4\textwidth]{#iter_curves#}
-  }
-  \subfigure[constraints] { \label{fig:a}
-    \includegraphics[width=0.4\textwidth]{#constraints#}
-  }
-  %% \subfigure[time statistics] { \label{fig:a}
-  %%   \includegraphics[width=0.4\textwidth]{#time_fig#}
-  %% }
-  \caption{statics of #init_file_name#}
-  \label{en_f}
-\end{figure}
-
 \begin{center}
   \begin{tabular}{|l*{8}{|l}}
     \hline
@@ -31,3 +16,19 @@
     failed lag grad & #failed-lag-grad# \\ \hline
   \end{tabular}
 \end{center}
+
+
+\begin{figure}
+  \centering
+  \subfigure[iteration curves] { \label{fig:b}
+    \includegraphics[width=0.4\textwidth]{#iter_curves#}
+  }
+  \subfigure[constraints] { \label{fig:a}
+    \includegraphics[width=0.4\textwidth]{#constraints#}
+  }
+  %% \subfigure[time statistics] { \label{fig:a}
+  %%   \includegraphics[width=0.4\textwidth]{#time_fig#}
+  %% }
+  \caption{statics of #init_file_name#}
+  \label{en_f}
+\end{figure}
