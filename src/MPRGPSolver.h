@@ -147,7 +147,7 @@ namespace MATH{
 	  g -= B;
 	  projector.DECIDE_FACE(result);
 	  projector.PHI(g, phi);
-	  precond.solve(phi,z);     assert_eq(z,z);
+	  precond.solve(g,z);     assert_eq(z,z);
 	  p = z;
 	  
 	  result_code = -1;
@@ -191,7 +191,7 @@ namespace MATH{
 	  result -= alpha_cg*p;
 	  g -= alpha_cg*AP;
 	  projector.PHI(g, phi);  assert_ge(g.dot(phi),0);
-	  precond.solve(phi,z);   assert_eq(z, z);  assert_ge(g.dot(z),0);
+	  precond.solve(g,z);   assert_eq(z, z);  assert_ge(g.dot(z),0);
 	  const T beta = (z.dot(AP)) / (p.dot(AP)); assert_eq(beta, beta);
 	  p = z-beta*p;
 	}
@@ -213,7 +213,7 @@ namespace MATH{
 	  g -= B;
 	  projector.DECIDE_FACE(result);
 	  projector.PHI(g, phi); 
-	  precond.solve(phi,z); assert_eq(z, z);
+	  precond.solve(g,z); assert_eq(z, z);
 	  p = z;
 	}
 	inline void PropStep(Vec &result){
@@ -234,7 +234,7 @@ namespace MATH{
 	  g -= alpha_cg*AD;
 	  projector.DECIDE_FACE(result);
 	  projector.PHI(g, phi);
-	  precond.solve(phi,z); assert_eq(z, z);
+	  precond.solve(g,z); assert_eq(z, z);
 	  p = z;
 	}
 
@@ -261,7 +261,7 @@ namespace MATH{
 	  projector.DECIDE_FACE(result);
 	  projector.PHI(g, phi); 
 
-	  precond.solve(phi,z); assert_eq(z, z);
+	  precond.solve(g,z); assert_eq(z, z);
 	  p = z;
 	}
 	inline T CGMonotonicStep(Vec &result, bool &result_is_prop){
@@ -283,7 +283,20 @@ namespace MATH{
 		result = y;
 		g -= alpha_cg*AP;
 		projector.PHI(g, phi);  assert_ge(g.dot(phi),0);
-		precond.solve(phi,z);   assert_eq(z, z);  assert_ge(g.dot(z),0);
+		precond.solve(g,z);   assert_eq(z, z);
+
+		// for (int i = 0; i < g.size(); i+=3){
+		//   const T d1 = g.template segment<3>(i).dot(phi.template segment<3>(i));
+		//   const T d2 = g.template segment<3>(i).dot(z.template segment<3>(i));
+		//   assert_ge_ext(d2,0,d1<< ", "<< "\ndiag:\t" << 
+		//   				A.diag(i)<<", "<< A.diag(i+1)<<", "<< A.diag(i+2)<<"\ng:\t"<< 
+		//   				g.template segment<3>(i).transpose()<< "\nphi:\t" << 
+		//   				phi.template segment<3>(i).transpose()<< "\nz:\t" <<
+		//   				z.template segment<3>(i).transpose());
+		// }
+
+		// assert_ge(phi.dot(z),0);
+		assert_ge(g.dot(z),0);
 		const T beta = (z.dot(AP)) / (p.dot(AP)); assert_eq(beta, beta);
 		p = z-beta*p;
 		residual_out = computeGradients(g, false);
@@ -478,6 +491,10 @@ namespace MATH{
 	  return diag_A[i];
 	}
 
+	const SparseMatrix<T> &getMatrix()const{
+	  return A;
+	}
+
   protected:
 	const SparseMatrix<T> &A;
 	Matrix<T,-1,1> diag_A;
@@ -530,11 +547,16 @@ namespace MATH{
 	template <typename MAT>
 	static int solve(const MAT &A,const Vec &B, PlaneProjector<T> &projector, Vec &x, const T tol=1e-3, const int max_it = 1000){
 
+	  // typedef DiagonalPlanePreconSolver<T,MAT, true> Preconditioner; // no precondition
+	  // typedef DiagonalPlanePreconSolver<T,MAT> Preconditioner;
+	  // typedef BlockDiagonalPlanePreconSolver<T,MAT> Preconditioner;
+	  // typedef SymGaussSeidelPlanePreconSolver<T,MAT> Preconditioner;
+	  typedef CholeskyPlanePreconSolver<T,MAT> Preconditioner;
+	  typedef MPRGPMonotonic<T, MAT, PlaneProjector<T>, Preconditioner > MPRGPSolver;
+
 	  assert_eq(A.rows(),B.size());
 	  assert_eq(A.rows(),x.size());
-	  DiagonalInFacePreconSolver<T,MAT> precond(A, projector.getFace());
-	  // typedef MPRGP<T,MAT,PlaneProjector<T>,DiagonalInFacePreconSolver<T,MAT> > MPRGPSolver;
-	  typedef MPRGPMonotonic<T, MAT, PlaneProjector<T>, DiagonalInFacePreconSolver<T,MAT> > MPRGPSolver;
+	  Preconditioner precond(A, projector.getFace(), projector.getPlanes());
 	  MPRGPSolver solver(A, B, precond, projector, max_it, tol);
 	  const int rlst_code = solver.solve(x);
 	  return rlst_code;

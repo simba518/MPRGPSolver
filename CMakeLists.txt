@@ -35,6 +35,7 @@ INCLUDE_DIRECTORIES(
   /usr/local/include
   /usr/local/include/utility
   ${PROJECT_SOURCE_DIR}/src
+  /home/simba/Workspace/CommonFile
   )
 
 ADD_SUBDIRECTORY(src)

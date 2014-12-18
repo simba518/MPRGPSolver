@@ -152,7 +152,7 @@ for log_f in log_fs:
 
     initfilename = grepStr(log_f,"init file:")
     if len(initfilename) > 0:
-        changeElements(tempt,"#init_file_name#", initfilename.split()[-1].replace("_","\\_") )
+        changeElements(tempt,"#init_file_name#", log_f.split()[-1].replace("_","\\_") )
     else:
         changeElements(tempt,"#init_file_name#", "" )
 
