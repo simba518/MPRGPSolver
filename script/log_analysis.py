@@ -150,6 +150,12 @@ for log_f in log_fs:
     changeElements(tempt,"#av-power#", averageInt(log_f,"power iter: "))
     changeElements(tempt,"#av-cons#", averageInt(log_f,"constraints: "))
 
+
+    changeElements(tempt,"#total-time#", averageFloat(log_f,"total solving:"))
+    changeElements(tempt,"#pre-time#", averageFloat(log_f,"preconditioning setup:"))
+    changeElements(tempt,"#power-time#", averageFloat(log_f,"compute spectral radius:"))
+    changeElements(tempt,"#mprgp-time#", averageFloat(log_f,"mprgp solving:"))
+
     initfilename = grepStr(log_f,"init file:")
     if len(initfilename) > 0:
         changeElements(tempt,"#init_file_name#", log_f.split()[-1].replace("_","\\_") )

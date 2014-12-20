@@ -131,6 +131,7 @@ void diagPrecond(SparseMatrix<double> &A,VectorXd &B, VectorXd &x, VVVec4d &plan
   }
 }
 
+template <typename Preconditioner=DiagonalPlanePreconSolver<double,FixedSparseMatrix<double>, true> >
 double testQPFromFile(const string &file_name,const double tol, const int max_it, const bool no_con=false){
 
   const string dir = "./test_case/data/";
@@ -147,7 +148,7 @@ double testQPFromFile(const string &file_name,const double tol, const int max_it
 	planes_for_each_node.resize(n);
   }
 
-  const double fun0 = (x.dot(A*x))*0.5f-x.dot(B);
+  // const double fun0 = (x.dot(A*x))*0.5f-x.dot(B);
   const double norm0 = (A*x-B).norm();
 
   // blockDiagPrecond(A, B, x, planes_for_each_node);
@@ -158,7 +159,7 @@ double testQPFromFile(const string &file_name,const double tol, const int max_it
   
   PlaneProjector<double> projector(planes_for_each_node, x);
   const FixedSparseMatrix<double> SA(A);
-  const int code = MPRGPPlane<double>::solve(SA,B,projector,x,pre_tol,max_it);
+  const int code = MPRGPPlane<double>::solve<FixedSparseMatrix<double>, Preconditioner>(SA,B,projector,x,pre_tol,max_it);
   ERROR_LOG_COND("MPRGP is not convergent, result code is "<<code<<endl,code==0);
   DEBUG_FUN( MPRGPPlane<double>::checkResult(A, B, projector, x, tol) );
   assert( isFeasible(planes_for_each_node, x) );
@@ -169,18 +170,102 @@ double testQPFromFile(const string &file_name,const double tol, const int max_it
 
   {
 	// check norm and function value
-	SimplicialCholesky<SparseMatrix<double> > sol(A);
-	const VectorXd xx = sol.solve(B);
-	const double norm1 = (A*x-B).norm();
-	const double norm2 = (A*xx-B).norm();
-	const double fun2 = (xx.dot(A*xx))*0.5f-xx.dot(B);
-	assert_lt(fun1, fun0);
+	// SimplicialCholesky<SparseMatrix<double> > sol(A);
+	// const VectorXd xx = sol.solve(B);
+	// const double norm1 = (A*x-B).norm();
+	// const double norm2 = (A*xx-B).norm();
+	// const double fun2 = (xx.dot(A*xx))*0.5f-xx.dot(B);
+	// assert_lt(fun1, fun0);
 	// assert_le(fun2, fun1);
 	// assert_lt(norm1, norm0); // @bug
 	// assert_le(norm2, norm1);
   }
 
   return fun1;
+}
+
+bool loadAdiGroups(const string filename, vector<vector<set<int> > > &groups){
+
+  ifstream in(filename.c_str());
+  if( !in.is_open()){
+	cout << "ERROR: failed to open: " << filename << endl;
+	return false;
+  }
+
+  groups.clear();
+  groups.resize(3);
+
+  string tempt;
+  int num_g = 0;
+  int len = 0;
+  int vid = 0;
+  for (int direction = 0; direction < 3; ++direction){
+
+	in >> tempt >> tempt >> tempt >> num_g;
+	assert(num_g > 0);
+	groups[direction].resize(num_g);
+	for (int g = 0; g < num_g; ++g){
+	  in >> tempt >> len;
+	  assert(len >= 0);
+	  for (int i = 0; i < len; ++i){
+		in >> vid;
+		groups[direction][g].insert(vid);
+	  }
+	}
+  }
+
+  in.close();
+  return in.good();
+}
+
+void testADI(const string &file_name,const double tol, const int max_it, const bool no_con=false){
+
+  const string dir = "./test_case/data/";
+  
+  SparseMatrix<double> A;
+  VectorXd B, x;
+  VVVec4d planes_for_each_node;
+  const bool succ_to_load_QP = loadQP(A, B, planes_for_each_node, x, dir+file_name);
+  assert_ext(succ_to_load_QP, dir+file_name);
+  assert_eq(A.rows(), B.size());
+  assert_eq(A.cols(), B.size());
+  assert_eq(x.size(), B.size());
+  cout << "dimension: " << B.size() << endl;
+  if(no_con){
+	const size_t n = planes_for_each_node.size();
+	planes_for_each_node.clear();
+	planes_for_each_node.resize(n);
+  }
+
+  vector<vector<set<int> > > groups;
+  { // init groups
+	// const int nodes = planes_for_each_node.size();
+	// vector<set<int> > group;
+	// for (int i = 0; i < nodes; ++i){
+	//   set<int> s;
+	//   s.insert(i);
+	//   group.push_back(s);
+	// }
+	// groups.push_back(group);
+	// groups.push_back(group);
+	// groups.push_back(group);
+	bool succ = loadAdiGroups(dir+"/QP/beam_ball_qp/0adi_groups.txt", groups);
+	assert(succ);
+  }
+
+  typedef ADIPlanePreconSolver<double,FixedSparseMatrix<double> > Preconditioner;
+  // typedef SingleADIPlanePreconSolver<double,FixedSparseMatrix<double> > Preconditioner;
+  typedef MPRGPMonotonic<double, FixedSparseMatrix<double>, PlaneProjector<double>, Preconditioner > MPRGPSolver;
+
+  const FixedSparseMatrix<double> SA(A);
+  PlaneProjector<double> projector(planes_for_each_node, x);
+  Preconditioner precond(SA, projector.getFace(), projector.getPlanes(), groups);
+  MPRGPSolver solver(SA, B, precond, projector, max_it, tol);
+  const int code = solver.solve(x);
+
+  ERROR_LOG_COND("MPRGP is not convergent, result code is "<<code<<endl,code==0);
+  DEBUG_FUN( MPRGPPlane<double>::checkResult(A, B, projector, x, tol) );
+  assert( isFeasible(planes_for_each_node, x) );
 }
 
 void testQPFromFiles(const string qp_fold,const double tol,const int max_it,
@@ -228,27 +313,102 @@ void testQPFromFiles(const string qp_fold,const double tol,const int max_it,
 
 void testQPFromFiles(){
 
-  testQPFromFiles("/QP/dragon_plane_qp/", 1e-4, 1000, 150 );
-  testQPFromFiles("/QP/dragon_stair_qp/", 1e-4, 1000, 150);
-  testQPFromFiles("/QP/dino_cylinder_qp/", 1e-4, 1000, 150);
-  testQPFromFiles("/QP/dino_ball_qp/", 1e-4, 1000, 150);
-  testQPFromFiles("/QP/beam_ball_qp/", 1e-4, 1000, 150);
+  // testQPFromFiles("/QP/dragon_plane_qp/", 1e-4, 1000, 150 ,20);
+  // testQPFromFiles("/QP/dragon_stair_qp/", 1e-4, 1000, 150);
+  // testQPFromFiles("/QP/dino_cylinder_qp/", 1e-4, 1000, 150);
+  // testQPFromFiles("/QP/dino_ball_qp/", 1e-4, 1000, 150);
+  // testQPFromFiles("/QP/beam_ball_qp/", 1e-4, 1000, 150);
 }
 
-void testFuncValue(){
+void testLargeDragonQP(){
 
-  cout << "testFuncValue" << endl;
-  const double f1 = testQPFromFile( "/QP/dragon_plane_qp/frame_0_it_0.b", 1e-4, 196);
-  assert_le(f1, -274.64494596);
+  cout << "testLargeDragonQP" << endl;
 
-  const double f2 = testQPFromFile( "/QP/dragon_plane_qp/frame_3_it_0.b", 1e-4, 340);
-  assert_le(f2, -272.47066019);
+  const double tol = 1e-4;
+  const int max_it = 10000;
+  const bool no_con = false;
+  {
+	cout << "mprgp tol: " << tol << endl;
+	cout << "mprgp max it: " << max_it << endl;
+	cout << "init file: QP/dragon_large_plane_qp" << endl;
+	cout << "total frames: "<< 7 << endl;
+  }
 
-  const double f3 = testQPFromFile( "/QP/dragon_plane_qp/frame_5_it_0.b", 1e-4, 376);
-  assert_le(f3, -270.5750235);
+  testQPFromFile( "/QP/dragon_large_plane_qp/frame_0_it_0.b", tol, max_it, no_con);
+  testQPFromFile( "/QP/dragon_large_plane_qp/frame_10_it_0.b", tol, max_it, no_con);
+  testQPFromFile( "/QP/dragon_large_plane_qp/frame_50_it_0.b", tol, max_it, no_con);
+  testQPFromFile( "/QP/dragon_large_plane_qp/frame_93_it_0.b", tol, max_it, no_con);
+  testQPFromFile( "/QP/dragon_large_plane_qp/frame_110_it_0.b", tol, max_it, no_con);
+  testQPFromFile( "/QP/dragon_large_plane_qp/frame_260_it_0.b", tol, max_it, no_con);
+  testQPFromFile( "/QP/dragon_large_plane_qp/frame_299_it_0.b", tol, max_it, no_con);
+  
+}
 
-  const double f4 = testQPFromFile( "/QP/dragon_plane_qp/frame_78_it_0.b", 1e-4, 371);
-  assert_le(f4, -103.38746011);
+void comparePrecondConvergency(const string &file,const double tol, const int max_it, bool no_con = false){
+
+  {
+  	cout << "No Preconditioner\n";
+  	typedef DiagonalPlanePreconSolver<double,FixedSparseMatrix<double>, true > Preconditioner;
+  	testQPFromFile<Preconditioner>( file, tol, max_it, no_con);
+  }
+
+  {
+  	cout << "Diagonal Preconditioner\n";
+  	typedef DiagonalPlanePreconSolver<double,FixedSparseMatrix<double>,false > Preconditioner;
+  	testQPFromFile<Preconditioner>( file, tol, max_it, no_con);
+  }
+
+  // {
+  // 	cout << "Block diagonal Preconditioner\n";
+  // 	typedef BlockDiagonalPlanePreconSolver<double,FixedSparseMatrix<double> > Preconditioner;
+  // 	testQPFromFile<Preconditioner>( file, tol, max_it, no_con);
+  // }
+
+  {
+  	cout << "Tridiagonal Preconditioner\n";
+  	typedef TridiagonalPlanePreconSolver<double,FixedSparseMatrix<double> > Preconditioner;
+  	testQPFromFile<Preconditioner>( file, tol, max_it, no_con);
+  }
+
+  // {
+  // 	cout << "Symetric Gaussian-Seidel Preconditioner\n";
+  // 	typedef SymGaussSeidelPlanePreconSolver<double,FixedSparseMatrix<double> > Preconditioner;
+  // 	testQPFromFile<Preconditioner>( file, tol, max_it, no_con);
+  // }
+
+  {
+	cout << "Cholesky Preconditioner\n";
+	typedef CholeskyPlanePreconSolver<double,FixedSparseMatrix<double> > Preconditioner;
+	testQPFromFile<Preconditioner>( file, tol, max_it, no_con);
+  }
+
+  {
+  	cout << "ADI Preconditioner\n";
+  	testADI( file, tol, max_it , no_con);
+  }
+}
+
+void comparePrecondConvergency(){
+
+  cout << "comparePrecondConvergency\n";
+  FILE* f = NULL;
+  // f = freopen("./tempt/dragon_asia_plane.txt","w,",stdout); assert(f);
+  // comparePrecondConvergency("/QP/dragon_plane_qp/frame_78_it_0.b", 1e-2, 3000, true);
+
+  // f = freopen("./tempt/dino_cyliner.txt","w,",stdout);  assert(f);
+  // comparePrecondConvergency("/QP/dino_cylinder_qp/frame_100_it_0.b", 1e-4, 3000);
+
+  // f = freopen("./tempt/dragon_asia_stair.txt","w,",stdout);  assert(f);
+  // comparePrecondConvergency("/QP/dragon_stair_qp/frame_78_it_0.b", 1e-4, 3000);
+
+  // f = freopen("./tempt/dino_ball.txt","w,",stdout);  assert(f);
+  // comparePrecondConvergency("/QP/dino_ball_qp/frame_100_it_0.b", 1e-4, 3000);
+
+  f = freopen("./tempt/beam_ball.txt","w,",stdout);  assert(f);
+  comparePrecondConvergency("/QP/beam_ball_qp/frame_24_it_0.b", 1e-3, 3000, true);
+
+  // f = freopen("./tempt/dragon_large.txt","w,",stdout);  assert(f);
+  // comparePrecondConvergency("/QP/dragon_large_plane_qp/frame_93_it_0.b", 1e-4, 10000);
 }
 
 void testNoConQP(){

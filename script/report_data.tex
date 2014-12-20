@@ -14,6 +14,7 @@
     non-convergent & #non-convergent# \\ \hline
     failed lambda & #failed-lambda# (#av-lambda#, #max-lambda#)\\ \hline
     failed lag grad & #failed-lag-grad# (#av-grad#, #max-grad#) \\ \hline
+    time & #total-time#(#pre-time#, #power-time#, #mprgp-time#) \\ \hline
   \end{tabular}
 \end{center}
 
@@ -21,13 +22,13 @@
 \begin{figure}
   \centering
   \subfigure[iteration curves] { \label{fig:b}
-    \includegraphics[width=0.4\textwidth]{#iter_curves#}
+    \includegraphics[width=0.38\textwidth]{#iter_curves#}
   }
   \subfigure[constraints] { \label{fig:a}
-    \includegraphics[width=0.4\textwidth]{#constraints#}
+    \includegraphics[width=0.38\textwidth]{#constraints#}
   }
   %% \subfigure[time statistics] { \label{fig:a}
-  %%   \includegraphics[width=0.4\textwidth]{#time_fig#}
+  %%   \includegraphics[width=0.38\textwidth]{#time_fig#}
   %% }
   \caption{statics of #init_file_name#}
   \label{en_f}

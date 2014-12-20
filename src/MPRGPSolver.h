@@ -44,7 +44,7 @@ namespace MATH{
 	T residualOut()const{return residual_out;}
 	static T specRad(const MAT& G,Vec* ev=NULL,const T& eps=1E-3f){
 
-	  FUNC_TIMER();
+	  FUNC_TIMER_CLASS timer("compute spectral radius");
 
 	  T delta;
 	  Vec tmp,tmpOut;
@@ -67,7 +67,7 @@ namespace MATH{
 		}
 		tmpOut/=normTmpOut;
 		delta=(tmpOut-tmp).norm();
-		DEBUG_LOG(setprecision(10)<<"power delta: "<<delta);
+		// DEBUG_LOG(setprecision(10)<<"power delta: "<<delta);
 		// printf("Power Iter %d Err: %f, SpecRad: %f\n",iter,delta,normTmpOut);
 		if(delta <= eps){
 		  if(ev)*ev=tmp;
@@ -152,6 +152,8 @@ namespace MATH{
 	  
 	  result_code = -1;
 	  num_cg = num_exp = numprop = iteration = 0;
+
+	  DEBUG_FUN(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
 	}
 	inline T computeGradients(const Vec &g, const bool comp_phi = true){
 
@@ -163,10 +165,10 @@ namespace MATH{
 	  const T residual = gp.norm();
 	  assert_le(phi.dot(beta),ScalarUtil<T>::scalar_eps*residual);
 
-	  DEBUG_LOG(setprecision(10)<<"||g||: "<<g.norm());
-	  DEBUG_LOG(setprecision(10)<<"||beta||: "<<beta.norm());
-	  DEBUG_LOG(setprecision(10)<<"||phi||: "<<phi.norm());
-	  DEBUG_LOG(setprecision(10)<<"residual: "<<residual);
+	  // DEBUG_LOG(setprecision(10)<<"||g||: "<<g.norm());
+	  // DEBUG_LOG(setprecision(10)<<"||beta||: "<<beta.norm());
+	  // DEBUG_LOG(setprecision(10)<<"||phi||: "<<phi.norm());
+	  // DEBUG_LOG(setprecision(10)<<"residual: "<<residual);
 	  // DEBUG_LOG("g: "<<g.transpose());
 	  // DEBUG_LOG("phi: "<<phi.transpose());
 	  // DEBUG_LOG("beta: "<<beta.transpose());
@@ -194,27 +196,28 @@ namespace MATH{
 	  precond.solve(g,z);   assert_eq(z, z);  assert_ge(g.dot(z),0);
 	  const T beta = (z.dot(AP)) / (p.dot(AP)); assert_eq(beta, beta);
 	  p = z-beta*p;
+	  DEBUG_FUN(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
 	}
 	inline void ExpStep(const Vec &AP, T alpha_f, Vec &result){
 
 	  DEBUG_LOG("exp_step");
 	  num_exp ++;
-	  // DEBUG_FUN(fun_val = A.funcValue(result, B));
 
 	  assert_eq(alpha_f, alpha_f);
 	  Vec &xTmp=beta;
-	  xTmp = result-alpha_f*p; // DEBUG_FUN({const T fun = A.funcValue(xTmp, B); assert_le(fun, fun_val)} );
+	  xTmp = result-alpha_f*p;
 	  g -= alpha_f*AP;
 	  projector.DECIDE_FACE(xTmp);
 	  projector.PHI(g, phi);
-	  xTmp -= alpha_bar*phi; // DEBUG_FUN({const T fun = A.funcValue(xTmp, B); assert_le(fun, fun_val)} );
-	  projector.project(xTmp,result); // DEBUG_FUN({const T fun = A.funcValue(result, B); assert_le(fun, fun_val)} );
+	  xTmp -= alpha_bar*phi;
+	  projector.project(xTmp,result);
 	  A.multiply(result,g);
 	  g -= B;
 	  projector.DECIDE_FACE(result);
 	  projector.PHI(g, phi); 
 	  precond.solve(g,z); assert_eq(z, z);
 	  p = z;
+	  DEBUG_FUN(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
 	}
 	inline void PropStep(Vec &result){
 
@@ -236,6 +239,7 @@ namespace MATH{
 	  projector.PHI(g, phi);
 	  precond.solve(g,z); assert_eq(z, z);
 	  p = z;
+	  DEBUG_FUN(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
 	}
 
 	inline T projectFunValue(const Vec &x)const{
@@ -263,6 +267,8 @@ namespace MATH{
 
 	  precond.solve(g,z); assert_eq(z, z);
 	  p = z;
+
+	  DEBUG_FUN(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
 	}
 	inline T CGMonotonicStep(Vec &result, bool &result_is_prop){
 
@@ -280,22 +286,11 @@ namespace MATH{
 	  while( result_is_prop && residual_out > tolerance_factor
 			 && fy<=fx && iteration < max_iterations ){
 
+		DEBUG_FUN(fun_val = fy; cout<< setprecision(12) << "func = " << fun_val<<endl;);
 		result = y;
 		g -= alpha_cg*AP;
 		projector.PHI(g, phi);  assert_ge(g.dot(phi),0);
 		precond.solve(g,z);   assert_eq(z, z);
-
-		// for (int i = 0; i < g.size(); i+=3){
-		//   const T d1 = g.template segment<3>(i).dot(phi.template segment<3>(i));
-		//   const T d2 = g.template segment<3>(i).dot(z.template segment<3>(i));
-		//   assert_ge_ext(d2,0,d1<< ", "<< "\ndiag:\t" << 
-		//   				A.diag(i)<<", "<< A.diag(i+1)<<", "<< A.diag(i+2)<<"\ng:\t"<< 
-		//   				g.template segment<3>(i).transpose()<< "\nphi:\t" << 
-		//   				phi.template segment<3>(i).transpose()<< "\nz:\t" <<
-		//   				z.template segment<3>(i).transpose());
-		// }
-
-		// assert_ge(phi.dot(z),0);
 		assert_ge(g.dot(z),0);
 		const T beta = (z.dot(AP)) / (p.dot(AP)); assert_eq(beta, beta);
 		p = z-beta*p;
@@ -354,13 +349,12 @@ namespace MATH{
 
 	int solve(Vec &result){
 
+	  FUNC_TIMER_CLASS timer("mprgp solving");
 	  this->initialize(result);
 
 	  for( MB::iteration = 0; MB::iteration < MB::max_iterations; MB::iteration++ ){
 
 	  	DEBUG_LOG("mprgp step "<<MB::iteration);
-	  	DEBUG_LOG(setprecision(12)<<"func: "<<(MB::fun_val=MB::A.funcValue(result,MB::B)));
-
 	  	MB::residual_out = this->computeGradients(MB::g);
 
 	  	if( MB::residual_out <= MB::tolerance_factor ){
@@ -408,6 +402,7 @@ namespace MATH{
 
   	int solve(Vec &result){
 
+	  FUNC_TIMER_CLASS timer("monotonic mprgp solving");
   	  this->initialize(result);
 
   	  for( MB::iteration = 0; MB::iteration < MB::max_iterations; ){
@@ -544,19 +539,19 @@ namespace MATH{
 	typedef vector<VVec4X > VVVec4X;
 	
   public:
-	template <typename MAT>
+	template <typename MAT, typename Preconditioner=DiagonalPlanePreconSolver<T,MAT, false> >
 	static int solve(const MAT &A,const Vec &B, PlaneProjector<T> &projector, Vec &x, const T tol=1e-3, const int max_it = 1000){
-
-	  // typedef DiagonalPlanePreconSolver<T,MAT, true> Preconditioner; // no precondition
-	  // typedef DiagonalPlanePreconSolver<T,MAT> Preconditioner;
-	  // typedef BlockDiagonalPlanePreconSolver<T,MAT> Preconditioner;
-	  // typedef SymGaussSeidelPlanePreconSolver<T,MAT> Preconditioner;
-	  typedef CholeskyPlanePreconSolver<T,MAT> Preconditioner;
-	  typedef MPRGPMonotonic<T, MAT, PlaneProjector<T>, Preconditioner > MPRGPSolver;
 
 	  assert_eq(A.rows(),B.size());
 	  assert_eq(A.rows(),x.size());
+	  FUNC_TIMER_CLASS fun_timer("total solving");
+
+	  UTILITY::Timer timer;
+	  timer.start();
 	  Preconditioner precond(A, projector.getFace(), projector.getPlanes());
+	  timer.stop("time for preconditioning setup: ");
+
+	  typedef MPRGPMonotonic<T, MAT, PlaneProjector<T>, Preconditioner > MPRGPSolver;
 	  MPRGPSolver solver(A, B, precond, projector, max_it, tol);
 	  const int rlst_code = solver.solve(x);
 	  return rlst_code;
@@ -585,9 +580,6 @@ namespace MATH{
 	  VVec4X planes;
 	  int code = -1;
 	  if (loadQP(A,B,planes,x,file_name)){
-		for (int i = 0; i < planes.size(); ++i){
-		  DEBUG_LOG("planes"<<i<<": "<<planes[i].transpose());
-		}
 		code = solve(FixedSparseMatrix<double>(A),B,planes,x,tol,max_it);
 	  }
 	  return code;

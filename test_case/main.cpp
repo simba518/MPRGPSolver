@@ -3,6 +3,7 @@
 // #include "test_ActiveSet3D.h"
 // #include "test_utility.h"
 #include "test_simulation.h"
+#include "test_precondition.h"
 using namespace MATH;
 
 #include <float.h>
@@ -29,10 +30,12 @@ int main(int argc, char *argv[]){
   // testSolverFromFile();
   // testComputeLagMultipliers();
 
-  // testFuncValue();
+  // test_tridiagonalPrecond();
+  comparePrecondConvergency();
   // testNoConQP();
 
-  testQPFromFiles();
+  // testQPFromFiles();
+  // testLargeDragonQP();
 
   return 0;
 }

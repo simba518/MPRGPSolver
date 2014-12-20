@@ -4,10 +4,12 @@
 #include <iostream>
 #include <stdio.h>
 #include <vector>
+#include <set>
 #include <eigen3/Eigen/Sparse>
 #include <eigen3/Eigen/Dense>
 #include <boost/shared_ptr.hpp>
 #include <MPRGPUtility.h>
+#include <SparseMatrixTools.h>
 using namespace Eigen;
 using namespace std;
 
@@ -91,7 +93,6 @@ namespace MATH{
 	  }
 	}
 
-  protected:
 	void project(const Vec&g, Vec&z)const{
 
 	  z = g;
@@ -133,6 +134,24 @@ namespace MATH{
 		  }
 		}
 	  }
+	}
+
+	void projectMatrix(const SparseMatrix<T> &M, SparseMatrix<T> &D)const{
+
+	  D.resize(M.rows(), M.cols());
+	  D.setZero();
+
+	  vector<Triplet<T> > triplet;
+	  for (int k = 0; k < M.outerSize(); ++k){
+		for(typename SparseMatrix<T>::InnerIterator it(M,k);it;++it){
+		  const int r = it.row();
+		  const int c = it.col();
+		  if( (planes[r/3].size()==0 && planes[c/3].size()==0) || (r==c))
+			triplet.push_back(Triplet<T>(r,c,it.value()));
+		}
+	  }
+	  D.reserve(triplet.size());
+	  D.setFromTriplets(triplet.begin(), triplet.end());
 	}
 
   protected:
@@ -221,28 +240,12 @@ namespace MATH{
   class CholeskyPlanePreconSolver:public DiagonalPlanePreconSolver<T,MAT>{
 
 	typedef Eigen::Matrix<T,-1,1> Vec;
-	typedef Eigen::Matrix<T,4,1> Vec4X;
 
   public:
 	CholeskyPlanePreconSolver(const MAT &A,const vector<char>&face,const VVVEC4X_T&P):
 	  DiagonalPlanePreconSolver<T,MAT>(A,face,P){
 
-	  const SparseMatrix<T> &M = A.getMatrix();
-	  D.resize(M.rows(), M.cols());
-	  D.setZero();
-
-	  vector<Triplet<T> > triplet;
-	  for (int k = 0; k < M.outerSize(); ++k){
-		for(typename SparseMatrix<T>::InnerIterator it(M,k);it;++it){
-		  const int r = it.row();
-		  const int c = it.col();
-		  if( (P[r/3].size()==0 && P[c/3].size()==0) || (r==c))
-			triplet.push_back(Triplet<T>(r,c,it.value()));
-		}
-	  }
-	  D.reserve(triplet.size());
-	  D.setFromTriplets(triplet.begin(), triplet.end());
-
+	  this->projectMatrix( A.getMatrix(), D );
 	  chol.compute(D);
 	  ERROR_LOG_COND("Factorization Fail!", chol.info()==Eigen::Success);
 	}
@@ -258,12 +261,11 @@ namespace MATH{
 	SparseMatrix<T> D;
   };
 
-  // Symmetric Gauss-Seidel preconditioner
+  // Symmetric Gaussian-Seidel preconditioner
   template <typename T, typename MAT >
   class SymGaussSeidelPlanePreconSolver:public DiagonalPlanePreconSolver<T,MAT>{
 
 	typedef Eigen::Matrix<T,-1,1> Vec;
-	typedef Eigen::Matrix<T,4,1> Vec4X;
 
   public:
 	SymGaussSeidelPlanePreconSolver(const MAT &A,const vector<char>&face,const VVVEC4X_T&P):
@@ -300,6 +302,134 @@ namespace MATH{
   private:
     SimplicialCholesky<SparseMatrix<T,0> > chol;
 	SparseMatrix<T> D;
+  };
+
+  // Tridiagonal preconditioner
+  template <typename T, typename MAT >
+  class TridiagonalPlanePreconSolver:public DiagonalPlanePreconSolver<T,MAT>{
+
+	typedef Eigen::Matrix<T,-1,1> Vec;
+
+  public:
+	TridiagonalPlanePreconSolver(const MAT &A,const vector<char>&face,const VVVEC4X_T&P):
+	  DiagonalPlanePreconSolver<T,MAT>(A,face,P){
+
+	  SparseMatrix<T> D;
+	  this->projectMatrix( A.getMatrix(), D );
+	  buildTridiagonalMatrix(D, TriM);
+
+	  chol.compute(TriM);
+	  ERROR_LOG_COND("Factorization Fail!", chol.info()==Eigen::Success);
+	}
+
+	void solve(const Vec&g, Vec&z){
+
+	  this->project(g,z);
+	  z = chol.solve(z);
+	}
+
+	static void buildTridiagonalMatrix(const SparseMatrix<T> &M, SparseMatrix<T> &Tri){
+	  
+	  vector<Triplet<T> > triplet;
+	  for (int k = 0; k < M.outerSize(); ++k){
+		for(typename SparseMatrix<T>::InnerIterator it(M,k);it;++it){
+		  const int r = it.row();
+		  const int c = it.col();
+		  if( (r+1==c) || (r==c) || (r-1==c) )
+			triplet.push_back(Triplet<T>(r,c,it.value()));
+		}
+	  }
+	  Tri.resize(M.rows(), M.cols());
+	  Tri.setZero();
+	  Tri.reserve(triplet.size());
+	  Tri.setFromTriplets(triplet.begin(), triplet.end());
+	}
+
+  private:
+    SimplicialCholesky<SparseMatrix<T,0> > chol;
+	SparseMatrix<T> TriM;
+  };
+
+  // ADI preconditioner with one single direction.
+  template <typename T, typename MAT >
+  class SingleADIPlanePreconSolver:public DiagonalPlanePreconSolver<T,MAT>{
+
+	typedef Eigen::Matrix<T,-1,1> Vec;
+	typedef std::vector<std::set<int> > VVI;
+	typedef boost::shared_ptr<SimplicialCholesky<SparseMatrix<T,0> > > pLLT;
+
+  public:
+   SingleADIPlanePreconSolver(const MAT&A,const vector<char>&f,const VVVEC4X_T&P,const VVI&g):
+	  DiagonalPlanePreconSolver<T,MAT>(A,f,P){
+
+	  this->projectMatrix( A.getMatrix(), D );
+	  buildSolvers(D, g);
+	}
+
+	void solve(const Vec&g, Vec&z){
+
+	  this->project(g,temp_x);
+	  solve_imp(temp_x, z);
+	}
+	void solve_imp(const Vec&projected_x, Vec&z){
+
+	  z.resize(projected_x.size());
+	  z.setZero();
+	  for (size_t i = 0; i < S.size(); ++i){
+		z += S[i].transpose()*(sol[i]->solve(S[i]*projected_x));
+	  }
+	}
+	
+  protected:
+	void buildSolvers(const SparseMatrix<T> &D, const VVI&groups){
+
+	  S.resize(groups.size());
+	  TriMat.resize(groups.size());
+	  sol.resize(groups.size());
+	  for (size_t i = 0; i < groups.size(); ++i){
+		EIGEN3EXT::genReshapeMatrix(D.rows(), 3, groups[i], S[i], false);
+		TridiagonalPlanePreconSolver<T,MAT>::buildTridiagonalMatrix(S[i]*D*S[i].transpose(), TriMat[i]);
+		sol[i] = pLLT(new SimplicialCholesky<SparseMatrix<T,0> >());
+		sol[i]->compute(TriMat[i]);
+		ERROR_LOG_COND("Factorization Fail!", sol[i]->info()==Eigen::Success);
+	  }
+	}
+
+  private:
+    vector<pLLT > sol;
+	vector<SparseMatrix<T> > S;// reshape matrices
+	vector<SparseMatrix<T> > TriMat;
+	SparseMatrix<T> D;
+	Vec temp_x;
+  };
+
+  // ADI preconditioner
+  template <typename T, typename MAT >
+  class ADIPlanePreconSolver{
+
+	typedef Eigen::Matrix<T,-1,1> Vec;
+	typedef std::vector<std::vector<std::set<int> > > VVVI;
+	typedef boost::shared_ptr<SingleADIPlanePreconSolver<T, MAT> > pSingleADI;
+
+  public:
+	ADIPlanePreconSolver(const MAT&A,const vector<char>&f,const VVVEC4X_T&P,const VVVI&g){
+
+	  direction = 0;
+	  assert_eq(g.size(), 3);
+	  for (int i = 0; i < 3; ++i){
+		adi[i] = pSingleADI(new SingleADIPlanePreconSolver<T,MAT>(A,f,P,g[i]));
+	  }
+	}
+
+	void solve(const Vec&g, Vec&z){
+
+	  adi[direction]->solve(g, z);
+	  direction = (direction+1)%3;
+	}
+	
+  private:
+	int direction;
+	pSingleADI adi[3];
   };
 
 }//end of namespace
