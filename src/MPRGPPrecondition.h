@@ -423,6 +423,18 @@ namespace MATH{
 
 	void solve(const Vec&g, Vec&z){
 
+	  // adi[0]->project(g,temp_x);
+
+	  // adi[0]->solve_imp(temp_x, z);
+	  // adi[1]->solve_imp(z, temp_x);
+	  // adi[2]->solve_imp(temp_x, z);
+	  
+	  // adi[2]->solve_imp(z, temp_x);
+	  // adi[1]->solve_imp(temp_x, z);
+	  // adi[0]->solve_imp(z, temp_x);
+
+	  // z = temp_x;
+
 	  adi[direction]->solve(g, z);
 	  direction = (direction+1)%3;
 	}
@@ -430,6 +442,7 @@ namespace MATH{
   private:
 	int direction;
 	pSingleADI adi[3];
+	// Vec temp_x;
   };
 
 }//end of namespace

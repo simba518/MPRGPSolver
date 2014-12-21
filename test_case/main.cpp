@@ -4,6 +4,7 @@
 // #include "test_utility.h"
 #include "test_simulation.h"
 #include "test_precondition.h"
+#include "test_pcg.h"
 using namespace MATH;
 
 #include <float.h>
@@ -31,11 +32,13 @@ int main(int argc, char *argv[]){
   // testComputeLagMultipliers();
 
   // test_tridiagonalPrecond();
-  comparePrecondConvergency();
   // testNoConQP();
 
   // testQPFromFiles();
   // testLargeDragonQP();
+  
+  // comparePrecondConvergency();
+  testpcg();
 
   return 0;
 }
