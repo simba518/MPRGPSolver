@@ -1,0 +1,69 @@
+\documentclass[9pt,twocolumn]{extarticle}
+
+\usepackage[hmargin=0.5in,tmargin=0.5in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{times}
+\usepackage{graphicx}
+\usepackage{subfigure}
+
+\usepackage{cleveref}
+\usepackage{color}
+\newcommand{\TODO}[1]{\textcolor{red}{#1}}
+
+\newcommand{\FPP}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\argmin}{\operatornamewithlimits{arg\ min}}
+\author{Siwang Li}
+
+\title{self-collision handling} 
+
+%% document begin here
+\begin{document}
+\maketitle
+
+\setlength{\parskip}{0.5ex}
+
+\section{Introduction}
+
+\begin{eqnarray*}
+   x_0 &=& \xi_1x_1+\xi_2x_2+\xi_3x_3+(1-\xi_1-\xi_2-\xi_3)x_4 \\
+   G &=& (x_1-x_4, x_2-x_4, x_3-x_4)\\
+   x &=& (x_0^T, x_1^T, x_2^T, x_3^T)^T\\
+   x_0 &=& G(x)\xi+x_4 \\
+   \xi &=& G^{-1}(x)(x_0-x_4) \\
+   D &=& (d_1-d_4, d_2-d_4, d_3-d_4)\\
+   \TODO{\hat{c}(x)} &=& \xi_1d_1+\xi_2d_2+\xi_3d_3+(1-\xi_1-\xi_2-\xi_3)d_4\\
+   &=& DG^{-1}(x)(x_0-x_4)-d_4
+\end{eqnarray*}
+\begin{equation}
+  \TODO{\tilde{x} = \arg \min_{\tilde{x}} \frac{1}{2}\|\tilde{x}-x^{*}\|_2^2 \text{ s.t. } \hat{c}(x) = 0}
+\end{equation}
+\begin{eqnarray*}
+  \hat{c}_i(x_i) &=& \hat{c}(\tilde{x}) + \nabla_{x_i} \hat{c}(\tilde{x})^T(x_i-\tilde{x}_i)\\
+  &=& n_i^Tx_i + p_i
+\end{eqnarray*}
+\begin{eqnarray*}
+  \nabla_{x} \hat{c}(\tilde{x}) &=& (n_0^T, n_1^T, n_2^T, n_3^T, n_4^T)^T\\
+  \TODO{n_i} &=& \nabla_{x_i} \hat{c}(\tilde{x})\\
+  \TODO{p_i} &=& \hat{c}(\tilde{x}) - n_i^T\tilde{x}_i
+\end{eqnarray*}
+
+\begin{eqnarray*}
+  x_{k+1}-x^* + J^T \lambda &=& 0\\
+  \hat{c}(x_k)+J(x_{k+1}-x_k) &=& 0\\
+  x_{k+1} + J^T \lambda &=& x^*\\
+  J x_{k+1} &=& J x_k-\hat{c}(x_k)\\
+  \left( \begin{array}{cc}
+    I & J^T\\
+    J & O
+  \end{array} \right)
+  \left( \begin{array}{c}
+    x_{k+1}\\
+    \lambda
+  \end{array} \right) &=& 
+\left( \begin{array}{c}
+  x^*\\
+J x_k-\hat{c}(x_k)  
+\end{array} \right)
+\end{eqnarray*}
+
+\end{document}
