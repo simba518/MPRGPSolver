@@ -9,7 +9,7 @@ namespace MATH{
   
   public:
 	template<class VEC>
-	void solve(const VEC &r, VEC &z)const{
+	void solve(const VEC &r, VEC &z, const VEC &phi)const{
 	  z = r;
 	}
   };
@@ -28,7 +28,7 @@ namespace MATH{
 	int solve(const VEC &b, VEC &x){
 	  
 	  r = b-A*x;
-	  precond.solve(r, z);
+	  precond.solve(r, z, r);
 	  p = z;
 	  
 	  if (FLEXIBLE)
@@ -46,7 +46,7 @@ namespace MATH{
 		if(r.norm() <= tol)
 		  break;
 	
-		precond.solve(r, z);
+		precond.solve(r, z, r);
 		T beta = 0;
 		if (FLEXIBLE){
 		  beta = z.dot(r-r0)/z0xr0;

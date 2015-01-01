@@ -147,7 +147,7 @@ namespace MATH{
 	  g -= B;
 	  projector.DECIDE_FACE(result);
 	  projector.PHI(g, phi);
-	  precond.solve(g,z);     assert_eq(z,z);
+	  precond.solve(g,z, phi);     assert_eq(z,z);
 	  p = z;
 	  
 	  result_code = -1;
@@ -193,7 +193,7 @@ namespace MATH{
 	  result -= alpha_cg*p;
 	  g -= alpha_cg*AP;
 	  projector.PHI(g, phi);  assert_ge(g.dot(phi),0);
-	  precond.solve(g,z);   assert_eq(z, z);  assert_ge(g.dot(z),0);
+	  precond.solve(g,z, phi);   assert_eq(z, z);  assert_ge(g.dot(z),0);
 	  const T beta = (z.dot(AP)) / (p.dot(AP)); assert_eq(beta, beta);
 	  p = z-beta*p;
 	  DEBUG_FUN(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
@@ -215,7 +215,7 @@ namespace MATH{
 	  g -= B;
 	  projector.DECIDE_FACE(result);
 	  projector.PHI(g, phi); 
-	  precond.solve(g,z); assert_eq(z, z);
+	  precond.solve(g,z, phi); assert_eq(z, z);
 	  p = z;
 	  DEBUG_FUN(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
 	}
@@ -237,7 +237,7 @@ namespace MATH{
 	  g -= alpha_cg*AD;
 	  projector.DECIDE_FACE(result);
 	  projector.PHI(g, phi);
-	  precond.solve(g,z); assert_eq(z, z);
+	  precond.solve(g,z, phi); assert_eq(z, z);
 	  p = z;
 	  DEBUG_FUN(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
 	}
@@ -264,8 +264,7 @@ namespace MATH{
 	  g -= B;
 	  projector.DECIDE_FACE(result);
 	  projector.PHI(g, phi); 
-
-	  precond.solve(g,z); assert_eq(z, z);
+	  precond.solve(g,z, phi); assert_eq(z, z);
 	  p = z;
 
 	  DEBUG_FUN(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
@@ -290,7 +289,7 @@ namespace MATH{
 		result = y;
 		g -= alpha_cg*AP;
 		projector.PHI(g, phi);  assert_ge(g.dot(phi),0);
-		precond.solve(g,z);   assert_eq(z, z);
+		precond.solve(g,z, phi);   assert_eq(z, z);
 		assert_ge(g.dot(z),0);
 		const T beta = (z.dot(AP)) / (p.dot(AP)); assert_eq(beta, beta);
 		p = z-beta*p;

@@ -23,7 +23,7 @@ namespace MATH{
 
   public:
 	InFaceNoPreconSolver(const vector<char>& face):_face(face){}
-	int solve(const Vec&rhs, Vec&result){
+	int solve(const Vec&rhs, Vec&result, const Vec &phi){
 	  MASK_FACE(rhs,result,_face);
 	  return 0;
 	}
@@ -41,11 +41,11 @@ namespace MATH{
 
   public:
 	DiagonalInFacePreconSolver(const MAT &M,const vector<char>& face):_matrix(M),_face(face){}
-	int solve(const Vec&rhs, Vec&result){
+	int solve(const Vec&rhs, Vec&result, const Vec &phi){
 
 	  result.resize(rhs.size());
 	  assert_eq(_face.size(), rhs.size());
-	  result = rhs;
+	  result = phi;
 	  for(size_t i=0; i<rhs.size(); i++){
 	  	assert_ge( _matrix.diag(i), ScalarUtil<T>::scalar_eps );
 	  	// if( 0 == _face[i] )
@@ -81,10 +81,10 @@ namespace MATH{
 	  }
 	}
 
-	void solve(const Vec&g, Vec&z)const{
+	void solve(const Vec&g, Vec&z, const Vec &phi)const{
 
 	  if (NO_PRECOND){
-		phi(g,z);
+		z = phi;
 	  }else{
 		project(g,z);
 		for ( int i = 0; i < g.size(); i++){
@@ -100,7 +100,7 @@ namespace MATH{
 	  for (int i = 0; i < n; ++i){
 		const int j = i*3;
 		if (face[j] != 0){
-		  assert_eq(face[j],1);
+		  assert_eq((int)face[j],1);
 		  assert_eq(planes[i].size(), 1);
 		  const Vec3X n = planes[i][0].template segment<3>(0);
 		  const Vec3X temp = z.template segment<3>(j) - (z[j]*n[0] + z[j+1]*n[1] + z[j+2]*n[2])*n;
@@ -111,26 +111,6 @@ namespace MATH{
 			const T sm = inv_diag[j]*n[0]*n[0] + inv_diag[j+1]*n[1]*n[1] + inv_diag[j+2]*n[2]*n[2];
 			assert_gt(sm, ScalarUtil<T>::scalar_eps);
 			z.template segment<3>(j) -= n*(zm/sm);
-		  }
-		}
-	  }
-	}
-
-	void phi(const Vec&g, Vec&z)const{
-
-	  z = g;
-	  const int n = g.size()/3;
-	  for (int i = 0; i < n; ++i){
-		const int j = i*3;
-		if (face[j] != 0){
-		  assert_eq(face[j],1);
-		  assert_eq(planes[i].size(), 1);
-		  const Vec3X n = planes[i][0].template segment<3>(0);
-		  const Vec3X temp = z.template segment<3>(j) - (z[j]*n[0] + z[j+1]*n[1] + z[j+2]*n[2])*n;
-		  if(g.template segment<3>(j).dot(temp) < 0){
-			z.template segment<3>(j).setZero();
-		  }else{
-			z.template segment<3>(j) = temp;
 		  }
 		}
 	  }
@@ -194,7 +174,7 @@ namespace MATH{
 	  }
 	}
 
-	void solve(const Vec&g, Vec&z)const{
+	void solve(const Vec&g, Vec&z, const Vec &phi)const{
 
 	  project(g,z);
 	  for ( int i = 0; i < g.size(); i+=3){
@@ -250,7 +230,7 @@ namespace MATH{
 	  ERROR_LOG_COND("Factorization Fail!", chol.info()==Eigen::Success);
 	}
 
-	void solve(const Vec&g, Vec&z){
+	void solve(const Vec&g, Vec&z, const Vec &phi){
 
 	  this->project(g,z);
 	  z = chol.solve(z);
@@ -293,7 +273,7 @@ namespace MATH{
 	  ERROR_LOG_COND("Factorization Fail!", chol.info()==Eigen::Success);
 	}
 
-	void solve(const Vec&g, Vec&z){
+	void solve(const Vec&g, Vec&z, const Vec &phi){
 
 	  this->project(g,z);
 	  z = chol.solve(z);
@@ -322,7 +302,7 @@ namespace MATH{
 	  ERROR_LOG_COND("Factorization Fail!", chol.info()==Eigen::Success);
 	}
 
-	void solve(const Vec&g, Vec&z){
+	void solve(const Vec&g, Vec&z, const Vec &phi){
 
 	  this->project(g,z);
 	  z = chol.solve(z);
@@ -366,12 +346,12 @@ namespace MATH{
 	  buildSolvers(D, g);
 	}
 
-	void solve(const Vec&g, Vec&z){
+	void solve(const Vec&g, Vec&z, const Vec &phi){
 
 	  this->project(g,temp_x);
-	  solve_imp(temp_x, z);
+	  solve_imp(temp_x, z, phi);
 	}
-	void solve_imp(const Vec&projected_x, Vec&z){
+	void solve_imp(const Vec&projected_x, Vec&z, const Vec &phi){
 
 	  z.resize(projected_x.size());
 	  z.setZero();
@@ -421,7 +401,7 @@ namespace MATH{
 	  }
 	}
 
-	void solve(const Vec&g, Vec&z){
+	void solve(const Vec&g, Vec&z, const Vec &phi){
 
 	  // adi[0]->project(g,temp_x);
 
@@ -435,7 +415,7 @@ namespace MATH{
 
 	  // z = temp_x;
 
-	  adi[direction]->solve(g, z);
+	  adi[direction]->solve(g, z, phi);
 	  direction = (direction+1)%3;
 	}
 	

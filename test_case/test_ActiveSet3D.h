@@ -56,3 +56,17 @@ void test_findClosestPoint2(){
   assert(found);
 
 }
+
+void test_findFeasiblePoint(){
+
+  cout << "test_findFeasiblePoint()\n";
+  {
+	Vec3d v;
+	v << 3.07430376886, 7.82701969387, -2.38041048088;
+	VVec4d p(2);
+	p[0] << 0.18497331977, 0.95654901619, -0.225386003556, 0;
+	p[1] << -0.804077659485, -0.521780805583,  0.284962994863, 0;
+	assert( findFeasible(p, v, true) );
+  }
+
+}

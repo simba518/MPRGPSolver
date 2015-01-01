@@ -24,6 +24,14 @@ namespace MATH{
 	return v.dot(p.segment<3>(0))+p[3];
   }
 
+  inline string printPlanes(const VVec4d& planes){
+	cout << "planes num: " << planes.size() << "\n";
+	for (size_t i = 0; i < planes.size(); ++i){
+	  cout << planes[i].transpose() << "\n";
+	}
+	return string("");
+  }
+
   inline bool isFeasible(const VVec4d& p,const Vec3d& v){
 
 	assert_eq(v,v);
@@ -58,9 +66,10 @@ namespace MATH{
 	}
   }
 
-  inline bool findFeasible(const VVec4d& p,Vec3d& v){
+  inline bool findFeasible(const VVec4d& p, Vec3d& v, const bool v_is_initialized=false){
 
-	v.setZero();
+	if (!v_is_initialized)
+	  v.setZero();
 	assert_eq(v,v);
 	const size_t nrP=(size_t)p.size();
 	std::vector<double> weight(nrP,1.0f);
@@ -84,7 +93,7 @@ namespace MATH{
 
 	  v-=H.inverse()*G;
 	  assert_eq_ext(G,G,"H:" << H);
-	  assert_eq_ext(v,v,"H: "<< H <<"\nG^t: "<<G.transpose()<<"\nplane:"<<p[0].transpose()<<"\nplane.size()="<<nrP);
+	  assert_eq_ext(v,v,"H: "<< H <<"\nG^t: "<<G.transpose()<<"\nplane:\n"<<printPlanes(p));
 
 	  double minDist=0.0f;
 	  int minId = -1;
@@ -102,16 +111,19 @@ namespace MATH{
 	return isFeasible(p,v);
   }
 
-  inline bool findFeasible(const VVVec4d& planes_for_all_nodes,VectorXd& x){
+  inline bool findFeasible(const VVVec4d& planes_for_all_nodes, VectorXd& x, const bool x_is_initialized=false){
 	
 	bool found = true;
 	Vec3d v;
 	const int n = planes_for_all_nodes.size();
-	x.resize(n*3);
+	assert_eq((int)x.size(), n*3);
 	for(int i = 0; i < n && found; i ++){
-	  found = findFeasible(planes_for_all_nodes[i], v);
-	  if(found)
-		x.segment<3>(i*3) = v;
+	  v = x.segment<3>(i*3);
+	  if ( !isFeasible(planes_for_all_nodes[i], v) ){
+		found = findFeasible(planes_for_all_nodes[i], v, x_is_initialized);
+		if(found)
+		  x.segment<3>(i*3) = v;
+	  }
 	}
 	return found;
   }
@@ -296,7 +308,7 @@ namespace MATH{
 	  v0 -= v0.dot(phi)*phi*(1.0f/(pnorm*pnorm));
 	}
 
-	const bool found = findFeasible(planes,beta);
+	const bool found = findFeasible(planes,beta,false);
 	assert(found);
 	succ = findClosestPoint(planes,v0,beta,aSet,eps);
 	return succ;
