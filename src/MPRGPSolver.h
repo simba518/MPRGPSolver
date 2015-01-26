@@ -153,11 +153,11 @@ namespace MATH{
 	  result_code = -1;
 	  num_cg = num_exp = numprop = iteration = 0;
 
-	  DEBUG_FUN(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
+	  debug_fun(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
 	}
 	inline T computeGradients(const Vec &g, const bool comp_phi = true){
 
-	  // DEBUG_FUN(assert(printFace()));
+	  // debug_fun(assert(printFace()));
 	  if (comp_phi)
 		projector.PHI(g,phi);
 	  projector.BETA(g,beta,phi);
@@ -196,7 +196,7 @@ namespace MATH{
 	  precond.solve(g,z, phi);   assert_eq(z, z);  assert_ge(g.dot(z),0);
 	  const T beta = (z.dot(AP)) / (p.dot(AP)); assert_eq(beta, beta);
 	  p = z-beta*p;
-	  DEBUG_FUN(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
+	  debug_fun(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
 	}
 	inline void ExpStep(const Vec &AP, T alpha_f, Vec &result){
 
@@ -217,7 +217,7 @@ namespace MATH{
 	  projector.PHI(g, phi); 
 	  precond.solve(g,z, phi); assert_eq(z, z);
 	  p = z;
-	  DEBUG_FUN(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
+	  debug_fun(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
 	}
 	inline void PropStep(Vec &result){
 
@@ -239,7 +239,7 @@ namespace MATH{
 	  projector.PHI(g, phi);
 	  precond.solve(g,z, phi); assert_eq(z, z);
 	  p = z;
-	  DEBUG_FUN(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
+	  debug_fun(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
 	}
 
 	inline T projectFunValue(const Vec &x)const{
@@ -267,7 +267,7 @@ namespace MATH{
 	  precond.solve(g,z, phi); assert_eq(z, z);
 	  p = z;
 
-	  DEBUG_FUN(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
+	  debug_fun(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
 	}
 	inline T CGMonotonicStep(Vec &result, bool &result_is_prop){
 
@@ -285,7 +285,7 @@ namespace MATH{
 	  while( result_is_prop && residual_out > tolerance_factor
 			 && fy<=fx && iteration < max_iterations ){
 
-		DEBUG_FUN(fun_val = fy; cout<< setprecision(12) << "func = " << fun_val<<endl;);
+		debug_fun(fun_val = fy; cout<< setprecision(12) << "func = " << fun_val<<endl;);
 		result = y;
 		g -= alpha_cg*AP;
 		projector.PHI(g, phi);  assert_ge(g.dot(phi),0);
@@ -382,7 +382,7 @@ namespace MATH{
 	  }
 
 	  ERROR_LOG_COND("MPRGP is not convergent with "<< MB::iteration << " iterations."<<endl, (MB::iteration < MB::max_iterations));
-	  DEBUG_FUN( this->printSolveInfo() );
+	  debug_fun( this->printSolveInfo() );
 	  return MB::result_code;
 	}
 
@@ -435,8 +435,8 @@ namespace MATH{
   	  MB::iterations_out = MB::iteration;
   	  ERROR_LOG_COND("MPRGP is not convergent with "<< MB::iteration << " iterations."<<endl, (MB::iteration < MB::max_iterations));
 
-	  DEBUG_FUN(MB::projector.DECIDE_FACE(result));
-  	  DEBUG_FUN( this->printSolveInfo() );
+	  debug_fun(MB::projector.DECIDE_FACE(result));
+  	  debug_fun( this->printSolveInfo() );
   	  return MB::result_code;
   	}
 
@@ -490,7 +490,7 @@ namespace MATH{
 	}
 
   protected:
-	const SparseMatrix<T> &A;
+	SparseMatrix<T> A;
 	Matrix<T,-1,1> diag_A;
   };
 

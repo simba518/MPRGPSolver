@@ -41,7 +41,7 @@ namespace MATH{
 		const T z0xr0 = z.dot(r);
 		const T alpha = z0xr0/p.dot(Ap);
 		x += alpha*p;
-		DEBUG_FUN(printFuncValue(A,b,x));
+		debug_fun(printFuncValue(A,b,x));
 		r -= alpha*Ap;
 		if(r.norm() <= tol)
 		  break;

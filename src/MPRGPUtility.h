@@ -19,7 +19,7 @@
 # define assert_le_ext(value_a,value_b,info)		
 # define assert_lt_ext(value_a,value_b,info)		
 # define assert_in_ext(value_a,min,max,info)
-# define DEBUG_FUN(event)
+# define debug_fun(event)
 #endif /* UTILITY_ASSERT  */
 
 #if defined(UTILITY_LOG)
