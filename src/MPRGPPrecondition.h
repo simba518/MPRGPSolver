@@ -67,10 +67,12 @@ namespace MATH{
 
 	typedef Eigen::Matrix<T,-1,1> Vec;
 	typedef Eigen::Matrix<T,3,1> Vec3X;
+	typedef Eigen::Matrix<T,4,1> Vec4X;
 
   public:
-	DiagonalPlanePreconSolver(const MAT &A,const vector<char>& face,const VVVEC4X_T&planes):
-	  A(A), face(face), planes(planes){
+	DiagonalPlanePreconSolver(const MAT &A,const vector<char>& face,
+							  const VVVEC4X_T&planes,const vector<vector<int> >&face_indices):
+	  A(A), face(face), planes(planes), face_indices(face_indices){
 
 	  if (!NO_PRECOND){
 		inv_diag.resize(A.rows());
@@ -97,21 +99,55 @@ namespace MATH{
 
 	  z = g;
 	  const int n = g.size()/3;
+
 	  for (int i = 0; i < n; ++i){
+
 		const int j = i*3;
-		if (face[j] != 0){
-		  assert_eq((int)face[j],1);
-		  assert_eq(planes[i].size(), 1);
-		  const Vec3X n = planes[i][0].template segment<3>(0);
-		  const Vec3X temp = z.template segment<3>(j) - (z[j]*n[0] + z[j+1]*n[1] + z[j+2]*n[2])*n;
+
+		if (1 == face[j]){
+
+		  const int fi = face_indices[i][0];
+		  const Vec3X n = planes[i][fi].template segment<3>(0);
+		  const Vec3X temp = z.template segment<3>(j)-(z[j]*n[0]+z[j+1]*n[1]+z[j+2]*n[2])*n;
 		  if(g.template segment<3>(j).dot(temp) < 0){
+
 			z.template segment<3>(j).setZero();
 		  }else{
+
 			const T zm = z[j]*inv_diag[j]*n[0] + z[j+1]*inv_diag[j+1]*n[1] + z[j+2]*inv_diag[j+2]*n[2];
 			const T sm = inv_diag[j]*n[0]*n[0] + inv_diag[j+1]*n[1]*n[1] + inv_diag[j+2]*n[2]*n[2];
 			assert_gt(sm, ScalarUtil<T>::scalar_eps);
 			z.template segment<3>(j) -= n*(zm/sm);
 		  }
+		}else if(2 == face[j]){
+
+		  const int f0 = face_indices[i][0];
+		  const int f1 = face_indices[i][1];
+		  assert_ne(f0,f1);
+		  const Vec4X &pi = planes[i][f0];
+		  const Vec4X &pj = planes[i][f1];
+
+		  Vec3X invL, N, L;
+		  invL[0] = sqrt(inv_diag[j+0]);
+		  invL[1] = sqrt(inv_diag[j+1]);
+		  invL[2] = sqrt(inv_diag[j+2]);
+		  
+		  L[0] = 1.0/invL[0];
+		  L[1] = 1.0/invL[1];
+		  L[2] = 1.0/invL[2];
+
+		  N[0] = invL[2]*invL[1]*(pi[1]*pj[2]-pi[2]*pj[1]);
+		  N[1] = invL[0]*invL[2]*(pi[2]*pj[0]-pi[0]*pj[2]);
+		  N[2] = invL[0]*invL[1]*(pi[0]*pj[1]-pi[1]*pj[0]);
+
+		  const T LgN = invL[0]*z[j+0]*N[0] + invL[1]*z[j+1]*N[1] + invL[2]*z[j+2]*N[2];
+		  z[j+0] = LgN*L[0]*N[0];
+		  z[j+1] = LgN*L[1]*N[1];
+		  z[j+2] = LgN*L[2]*N[2];
+
+		}else if(face[j] >= 3){
+
+		  z.template segment<3>(j).setZero();
 		}
 	  }
 	}
@@ -138,6 +174,7 @@ namespace MATH{
 	const MAT &A;
 	const vector<char>& face;
 	const VVVEC4X_T &planes;
+	const vector<vector<int> > &face_indices;
 	Vec inv_diag;
   };
 
@@ -151,8 +188,9 @@ namespace MATH{
 	typedef std::vector<Mat3X, Eigen::aligned_allocator<Mat3X> > VMat3X;
 
   public:
-	BlockDiagonalPlanePreconSolver(const MAT&A,const vector<char>&face,const VVVEC4X_T&P):
-	  A(A), face(face), planes(P){
+	BlockDiagonalPlanePreconSolver(const MAT&A,const vector<char>&face,
+								   const VVVEC4X_T&P,const vector<vector<int> >&face_indices):
+	  A(A), face(face), planes(P), face_indices(face_indices){
 
 	  const SparseMatrix<T> &M = A.getMatrix();
 
@@ -212,6 +250,7 @@ namespace MATH{
 	const MAT &A;
 	const vector<char>& face;
 	const VVVEC4X_T &planes;
+	const vector<vector<int> >&face_indices;
 	VMat3X D, inv_D;
   };
 
@@ -222,8 +261,8 @@ namespace MATH{
 	typedef Eigen::Matrix<T,-1,1> Vec;
 
   public:
-	CholeskyPlanePreconSolver(const MAT &A,const vector<char>&face,const VVVEC4X_T&P):
-	  DiagonalPlanePreconSolver<T,MAT>(A,face,P){
+	CholeskyPlanePreconSolver(const MAT &A,const vector<char>&face,const VVVEC4X_T&P,const vector<vector<int> >&face_indices):
+	  DiagonalPlanePreconSolver<T,MAT>(A,face,P,face_indices){
 
 	  this->projectMatrix( A.getMatrix(), D );
 	  chol.compute(D);
@@ -248,8 +287,8 @@ namespace MATH{
 	typedef Eigen::Matrix<T,-1,1> Vec;
 
   public:
-	SymGaussSeidelPlanePreconSolver(const MAT &A,const vector<char>&face,const VVVEC4X_T&P):
-	  DiagonalPlanePreconSolver<T,MAT>(A,face,P){
+	SymGaussSeidelPlanePreconSolver(const MAT &A,const vector<char>&face,const VVVEC4X_T&P,const vector<vector<int> >&face_indices):
+	  DiagonalPlanePreconSolver<T,MAT>(A,face,P,face_indices){
 
 	  const SparseMatrix<T> &M = A.getMatrix();
 	  SparseMatrix<T> L(M.rows(), M.cols());
@@ -291,8 +330,8 @@ namespace MATH{
 	typedef Eigen::Matrix<T,-1,1> Vec;
 
   public:
-	TridiagonalPlanePreconSolver(const MAT &A,const vector<char>&face,const VVVEC4X_T&P):
-	  DiagonalPlanePreconSolver<T,MAT>(A,face,P){
+	TridiagonalPlanePreconSolver(const MAT &A,const vector<char>&face,const VVVEC4X_T&P,const vector<vector<int> >&face_indices):
+	  DiagonalPlanePreconSolver<T,MAT>(A,face,P,face_indices){
 
 	  SparseMatrix<T> D;
 	  this->projectMatrix( A.getMatrix(), D );
@@ -339,8 +378,8 @@ namespace MATH{
 	typedef boost::shared_ptr<SimplicialCholesky<SparseMatrix<T,0> > > pLLT;
 
   public:
-   SingleADIPlanePreconSolver(const MAT&A,const vector<char>&f,const VVVEC4X_T&P,const VVI&g):
-	  DiagonalPlanePreconSolver<T,MAT>(A,f,P){
+	SingleADIPlanePreconSolver(const MAT&A,const vector<char>&f,const VVVEC4X_T&P,const VVI&g,const vector<vector<int> >&face_indices):
+	  DiagonalPlanePreconSolver<T,MAT>(A,f,P,face_indices){
 
 	  this->projectMatrix( A.getMatrix(), D );
 	  buildSolvers(D, g);
@@ -392,12 +431,12 @@ namespace MATH{
 	typedef boost::shared_ptr<SingleADIPlanePreconSolver<T, MAT> > pSingleADI;
 
   public:
-	ADIPlanePreconSolver(const MAT&A,const vector<char>&f,const VVVEC4X_T&P,const VVVI&g){
+	ADIPlanePreconSolver(const MAT&A,const vector<char>&f,const VVVEC4X_T&P,const VVVI&g,const vector<vector<int> >&face_indices){
 
 	  direction = 0;
 	  assert_eq(g.size(), 3);
 	  for (int i = 0; i < 3; ++i){
-		adi[i] = pSingleADI(new SingleADIPlanePreconSolver<T,MAT>(A,f,P,g[i]));
+		adi[i] = pSingleADI(new SingleADIPlanePreconSolver<T,MAT>(A,f,P,g[i],face_indices));
 	  }
 	}
 

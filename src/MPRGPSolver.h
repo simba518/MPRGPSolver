@@ -547,7 +547,7 @@ namespace MATH{
 
 	  UTILITY::Timer timer;
 	  timer.start();
-	  Preconditioner precond(A, projector.getFace(), projector.getPlanes());
+	  Preconditioner precond(A, projector.getFace(), projector.getPlanes(), projector.getFaceIndex());
 	  timer.stop("time for preconditioning setup: ");
 
 	  typedef MPRGPMonotonic<T, MAT, PlaneProjector<T>, Preconditioner > MPRGPSolver;
