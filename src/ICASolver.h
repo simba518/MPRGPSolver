@@ -253,6 +253,17 @@ namespace MATH{
 	const VectorXd &getLambda()const{
 	  return lambda;
 	}
+
+	void printSolveInfo(const SparseMatrix<double> &A, const SparseMatrix<double> &J, 
+						const VectorXd &p, const VectorXd &x)const{
+
+	  INFO_LOG("residual: " << getResidual());
+	  INFO_LOG("iterations: " << getIterations());
+	  INFO_LOG("Eqation residual ||A x - J^t lambda||: " << (A*x - J.transpose()*getLambda()).norm());
+	  INFO_LOG("Complement Cond lambda.dot(J x - p): " << getLambda().dot(J*x-p));
+	  INFO_LOG("lambda: " << getLambda().transpose());
+	  INFO_LOG("J x - p: " << (J*x-p).transpose());
+	}
 	
   protected:
 	const int max_it;
