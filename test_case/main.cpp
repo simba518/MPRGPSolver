@@ -1,10 +1,11 @@
-#include "test_solver.h"
-#include "test_projection.h"
+// #include "test_solver.h"
+// #include "test_projection.h"
 // #include "test_ActiveSet3D.h"
 // #include "test_utility.h"
 // #include "test_simulation.h"
 // #include "test_precondition.h"
 // #include "test_pcg.h"
+#include "test_ICASolver.h"
 using namespace MATH;
 
 #include <float.h>
@@ -40,6 +41,10 @@ int main(int argc, char *argv[]){
   
   // comparePrecondConvergency();
   // testpcg();
+
+  test_GaussSeidel();
+  test_ProjectedGaussSeidel();
+  test_ICASolver();
 
   return 0;
 }
