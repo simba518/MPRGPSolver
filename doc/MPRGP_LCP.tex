@@ -1,0 +1,147 @@
+\documentclass[9pt,twocolumn]{extarticle}
+
+\usepackage[hmargin=0.5in,tmargin=0.5in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{times}
+\usepackage{graphicx}
+\usepackage{subfigure}
+
+\usepackage{cleveref}
+\usepackage{color}
+\newcommand{\TODO}[1]{\textcolor{red}{#1}}
+
+\newcommand{\FPP}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\argmin}{\operatornamewithlimits{arg\ min}}
+\author{Siwang Li}
+
+\title{Solve LCP with Extened MPRGP}
+
+%% document begin here
+\begin{document}
+\maketitle
+
+\setlength{\parskip}{0.5ex}
+
+\section{LCP}
+\begin{equation}
+  A x = b \quad \mbox{ s.t. } \quad J x \ge c
+\end{equation}
+
+\section{MPRGP Extension}
+\subsection{Projection}
+The projection process is to find an vector $y$ which satisfies the constraints while is cloest to the un-projected vector $x$:
+\begin{equation}
+  P_{\Omega}(x) = \min_{y}\frac{1}{2}\|y-x\|_2^2 \quad \mbox{ s.t. } \quad J y \ge c
+\end{equation}
+Considering its KKT condition, we have
+\begin{equation}
+  y = x + J^T\lambda  \quad \mbox{ s.t. } \quad 0 \le \lambda \perp J y \ge c
+\end{equation}
+We can solve the following LCP sub problem to obtain $\lambda$, 
+\begin{equation}
+   0 \le \lambda \perp (JJ^T)\lambda \ge c - Jx
+\end{equation}
+\TODO{which is equal to solving (why?)}
+\begin{equation}
+  (JJ^T)\lambda=c - Jx \quad \mbox{s.t.} \quad \lambda \ge 0
+\end{equation}
+As $J^TJ$ is a \TODO{SPD matrix (why?)}, we can use traditional MPRGP solver to solve it. Further more, as $J$ is sparse and constant, we can use Incomplete Cholesky Factorization as a pre-conditioner. \TODO{(But how to combine it with MPRGP?)}
+
+\subsection{Step Limit}
+Given a feasible point $x$ and a direction $p$, the step limit $\alpha$ is a positive scalar which satisfies
+\begin{equation}
+  J(x+\alpha p) \ge c
+\end{equation}
+Thus we can compute $\alpha$ by using
+\begin{equation} 
+ \alpha = \min_{\alpha} \alpha_i 
+\end{equation}
+where
+\begin{equation}
+  \alpha_i = \left\{
+  \begin{array}{l l}
+    +\infty & \quad \text{if $J_ip \ge 0$}\\
+    \frac{c_i-J_ix}{J_ip} & \quad \text{if $J_ip < 0$}
+  \end{array} \right  
+\end{equation}
+Here, $J_i$ is the $i$-th row of matrix $J$.
+
+\subsection{Free gradient}
+We suppose the constraints active constraints is given by $\hat{J}x = c$, then the free gradient $\phi(x)$ is in the NULL space of $\hat{J}$ and should be as close to the gradient $g = Ax-b$ as possible, and we further require $g^T\phi \ge \epsilon$ to ensure $-\phi$ is a decrease direction:
+\begin{equation}
+  \phi = \min_\phi \frac{1}{2} \|\phi - g\|_2^2  \quad \mbox{ s.t. } \quad g^T\phi \ge 0, \quad \hat{J} \phi = 0
+\end{equation}
+The KKT condition for this problem is
+\begin{equation}
+  \phi = g + g\lambda_1 + \hat{J}^T \lambda_2 \quad \mbox{ s.t. } \quad \epsilon \le \lambda_1 \perp g^T\phi = 0, \quad \hat{J}\phi = 0
+\end{equation}
+we can obtain $\lambda$ by solving
+\begin{equation}\label{}
+  \left\{ \begin{array}{rl}
+    g^Tg \lambda_1 + (\hat{J}g)^T\lambda_2 = -g^Tg+\epsilon, \quad \mbox{s.t.} \quad \lambda_1 \ge 0\\
+    (\hat{J}g)\lambda_1+(\hat{J}\hat{J}^T) \lambda_2 = -\hat{J}g
+  \end{array} \right.
+\end{equation}
+Let $\xi$ be the solution of
+\begin{equation}
+  (\hat{J}\hat{J}^T) \xi = -\hat{J}g
+\end{equation}
+Then we have $\lambda_2 = (1+\lambda_1)\xi$, and we can obtain $\lambda_1$ through
+\begin{equation}
+  \lambda_1 = \max(0,\frac{\epsilon}{\sigma} - 1)
+\end{equation}
+where $\sigma = g^Tg-(Jg)^T\xi$.
+
+As $\hat{J}\hat{J}^T$ is a SPD matrix, we can use Conjugate Gradient method to solve this problem. However, as $\hat{J}^T\hat{J}$ is not constant, we need a more cheap preconditioner rather than Incomplete Cholesky Factorization, such as $SOR$ preconditioner. (\TODO{Any more efficient method?})
+
+\subsection{Chopped gradient}
+The chopped gradient $\beta(x)$ should be complemented to the free direction $\phi(x)$, and it should be as close to the gradient $g$ as possible. What's more, it is required that $x+\alpha \beta$ should always satisfies the constraints for any $\alpha > 0$. Thus we compute $\phi(x)$ by solving
+\begin{equation}
+  \beta = \min_\beta \frac{1}{2} \|\beta - g\|_2^2  \quad \mbox{ s.t. } \quad \phi^T \beta = 0 \mobx{, }\quad \hat{J} \beta \ge 0
+\end{equation}
+The KKT condition of this problem is
+\begin{equation}
+  \beta = g + \phi \lambda_1 + \hat{J}^T\lambda_2  \quad \mbox{ s.t. } \quad \phi^T \beta = 0 \mobx{, }\quad 0 \le \lambda_2 \perp \hat{J} \beta \ge 0
+\end{equation}
+By replacing $\beta$ with $\lambda_1$, $\lambda_2$ in the constraints, and using the fact that $\hat{J}\phi = 0$, we obtain
+\begin{equation}
+  \phi^T\phi \lambda_1 = -\phi^Tg
+\end{equation}
+\begin{equation}
+  \hat{J}\hat{J}^T\lambda_2 = -\hat{J}g \quad \mbox{s.t.} \quad \lambda_2 \ge 0
+\end{equation}
+As $\hat{J}^T\hat{J}$ is a \TODO{SPD matrix (why?)}, we can use traditional MPRGP solver to solve for $\lambda_2$, and \TODO{use SOR as preconditioner}.
+
+\subsection{Precondition}
+We suppose the preconditioning matrix is $M = LL^T$, then we convert the original LCP problem into
+\begin{equation}
+  \tilde{A} \tilde{x} = \tilde{b} \quad {s.t.} \quad \tilde{J}\tilde{x} \ge c
+\end{equation}
+where $\tilde{A} = L^{-1}AL^{-T}$, $\tilde{b} = L^{-1}b$, $\tilde{x} = L^{T}x$ and $\tilde{J} = JL^{-T}$. The corresponding free gradient is obtained by solving
+\begin{equation}
+  \tilde{\phi} = \tilde{g} + \hat{\tilde{J}}^T\lambda \quad {s.t.} \quad \hat{\tilde{J}}\tilde{\phi} = 0
+\end{equation}
+e.g.
+\begin{equation}
+  \tilde{\phi} = L^{-1}g + L^{-1}\hat{J}^T\lambda \quad {s.t.} \quad \hat{J}L^{-T}\tilde{\phi} = 0
+\end{equation}
+Thus we can solve the following equation for $\lambda$
+\begin{equation}
+  (\hat{J}M^{-1}\hat{J}^T)\lambda = -\hat{J}M^{-1}g
+\end{equation}
+Then the pesudoresidual for PCG is 
+\begin{equation}
+  z = L^{-T}\tilde{\phi} = M^{-1}(g + \hat{J}^T\lambda)
+\end{equation}
+If $J = I$, we have 
+\begin{equation}
+  z = M^{-1} \phi
+\end{equation}
+
+%% references
+% \begin{thebibliography}{99}
+% \bibitem{sig2011} Fast simulation of skeleton-driven deformable body
+%   characters.
+% \end{thebibliography}
+
+\end{document}

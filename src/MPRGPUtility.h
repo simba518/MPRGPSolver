@@ -153,7 +153,45 @@ namespace MATH{
 	}
   }
 
-  // save the problem to the file: A, B, x0 and the constraints, i.e planes.
+  // write and load sparse matrix as binay file
+  template<typename T>
+  inline bool writeSparseMatrix(ofstream &out, const Eigen::SparseMatrix<T> &A){
+
+	const size_t A_rows = A.rows();
+	const size_t A_nz = A.nonZeros();
+	out.write((char*)&(A_rows),sizeof(A_rows));
+	out.write((char*)&(A_nz),sizeof(A_nz));
+	std::vector<Eigen::Triplet<T> > A_data;
+	A_data.reserve(A.nonZeros());
+	for ( int k = 0; k < A.outerSize(); ++k ){
+	  for ( typename Eigen::SparseMatrix<T>::InnerIterator it(A,k); it; ++it )
+		A_data.push_back(Eigen::Triplet<T>(it.row(), it.col(), it.value()));
+	}
+	out.write((char*)&A_data[0],sizeof(Eigen::Triplet<T>)*A_nz);
+	return out.good();
+  }
+
+  template<typename T>
+  inline bool loadSparseMatrix(ifstream &in, Eigen::SparseMatrix<T> &A){
+
+	size_t rows = 0;
+	size_t nnz = 0;
+	in.read((char*)&(rows),sizeof(rows));
+	in.read((char*)&(nnz),sizeof(nnz));
+	A.setZero();
+	A.resize(rows, rows);
+	if(nnz > 0){
+	  A.reserve(nnz);
+	  std::vector<Eigen::Triplet<T> > tri(nnz);
+	  in.read((char*)&tri[0], sizeof(Eigen::Triplet<T>)*tri.size());
+	  A.setFromTriplets(tri.begin(), tri.end());
+	}else{
+	  A.setZero();
+	}
+	return in.good();
+  }
+
+  // write and load the problem: A, B, x0 and the constraints, i.e planes.
   // the problem is: 
   // min_{x} 1/2*x^t*A*x-x^t*B s.t. n_i*x_j+p_i>= 0
   template<typename T>
@@ -219,17 +257,7 @@ namespace MATH{
 	}
 	
 	// write A
-	const size_t A_rows = A.rows();
-	const size_t A_nz = A.nonZeros();
-	out.write((char*)&(A_rows),sizeof(A_rows));
-	out.write((char*)&(A_nz),sizeof(A_nz));
-	std::vector<Eigen::Triplet<T> > A_data;
-	A_data.reserve(A.nonZeros());
-	for ( int k = 0; k < A.outerSize(); ++k ){
-	  for ( typename Eigen::SparseMatrix<T>::InnerIterator it(A,k); it; ++it )
-		A_data.push_back(Eigen::Triplet<T>(it.row(), it.col(), it.value()));
-	}
-	out.write((char*)&A_data[0],sizeof(Eigen::Triplet<T>)*A_nz);
+	writeSparseMatrix(out, A);
 	  
 	// write B
 	assert_eq(B.size(), A.rows());
@@ -253,7 +281,6 @@ namespace MATH{
 	return succ;
   }
 
-  // load the problem from file
   template<typename T>
   inline bool loadQP(Eigen::SparseMatrix<T> &A,Eigen::Matrix<T,-1,1> &B,
 					 VVEC4X_T &planes,
@@ -331,19 +358,8 @@ namespace MATH{
 	}
 
 	// read A
-	size_t rows = 0;
-	size_t nnz = 0;
-	in.read((char*)&(rows),sizeof(rows));
-	in.read((char*)&(nnz),sizeof(nnz));
-	A.resize(rows, rows);
-	if(nnz > 0){
-	  A.reserve(nnz);
-	  std::vector<Eigen::Triplet<T> > tri(nnz);
-	  in.read((char*)&tri[0], sizeof(Eigen::Triplet<T>)*tri.size());
-	  A.setFromTriplets(tri.begin(), tri.end());
-	}else{
-	  A.setZero();
-	}
+	loadSparseMatrix(in, A);
+	const int rows = A.rows();
 	  
 	// read B
 	B.resize(A.rows());
@@ -374,6 +390,86 @@ namespace MATH{
 
   }
 
+  // write and load QP problem:
+  // A*x = B   s.t.  J*x >= c, where A and J are sparse matrices, 
+  // and x0 is the inital value.
+  template<typename T>
+  inline bool writeQP(const Eigen::SparseMatrix<T> &A,const Eigen::Matrix<T,-1,1> &B,
+					  const Eigen::SparseMatrix<T> &J,const Eigen::Matrix<T,-1,1> &c,
+					  const Eigen::Matrix<T,-1,1> &x0,const string file_name){
+
+	// open file
+	ofstream out(file_name.c_str(), ios::out|ios::binary);
+	if (!out.is_open()){
+	  ERROR_LOG("failed to open the file: "<<file_name);
+	  return false;
+	}
+	
+	// write A
+	writeSparseMatrix(out, A);
+	  
+	// write B
+	assert_eq(B.size(), A.rows());
+	out.write((char*)&B[0],sizeof(T)*B.size());
+
+	// write J
+	writeSparseMatrix(out, J);
+
+	// write c
+	assert_eq(c.size(), J.rows());
+	out.write((char*)&c[0],sizeof(T)*c.size());
+
+	// write x0
+	assert_eq(x0.size(), A.rows());
+	out.write((char*)&x0[0],sizeof(T)*x0.size());
+
+	const bool succ = out.good();
+	out.close();
+	return succ;
+  }
+
+  template<typename T>
+  inline bool loadQP(const Eigen::SparseMatrix<T> &A,const Eigen::Matrix<T,-1,1> &B,
+					 const Eigen::SparseMatrix<T> &J,const Eigen::Matrix<T,-1,1> &c,
+					 const Eigen::Matrix<T,-1,1> &x0,const string file_name){
+
+	// open file
+	ifstream in(file_name.c_str(), ios::in|ios::binary);
+	if (!in.is_open()){
+	  ERROR_LOG("failed to open the file: "<<file_name);
+	  return false;
+	}
+
+	// read A
+	loadSparseMatrix(in, A);
+	  
+	// read B
+	B.resize(A.rows());
+	if(B.size() > 0){
+	  in.read((char*)&B[0],sizeof(T)*B.size());
+	}
+
+	// read J
+	loadSparseMatrix(in, J);
+
+	// read c
+	c.resize(J.rows());
+	if(c.size() > 0){
+	  in.read((char*)&c[0],sizeof(T)*c.size());
+	}
+
+	// read x0
+	x0.resize(A.rows());
+	if(x0.size() > 0){
+	  in.read((char*)&x0[0],sizeof(T)*x0.size());
+	}
+
+	const bool succ = in.good();
+	in.close();
+	return succ;
+
+  }
+
   // check the validation of the lagragian multipliers
   template<typename T>
   inline bool greaterThan(const vector<vector<T> > &all_lambdas, const T tol=0.0f){
@@ -388,7 +484,22 @@ namespace MATH{
 	}
 	return valid;
   }
+
   
+  template<typename T, typename Vec>
+  inline void getDiagonal(const Eigen::SparseMatrix<T> &A, Vec &diag_A){
+	
+	diag_A.resize( min( A.rows(), A.cols() ) );
+	for(int k = 0; k < A.outerSize(); ++k)
+	  for(typename Eigen::SparseMatrix<T>::InnerIterator it(A,k);it;++it){
+		if (it.col() == it.row()){
+		  assert_eq(it.row(),k);
+		  diag_A[k] = it.value();
+		  break;
+		}
+	  }
+  }
+
 }
 
 #endif /* _MPRGPUTILITY_H_ */

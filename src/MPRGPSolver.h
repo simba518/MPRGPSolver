@@ -142,6 +142,7 @@ namespace MATH{
 	  INFO_LOG(name << " exp steps: "<< num_exp);
 	  INFO_LOG(name << " prop steps: "<< numprop);
 	  INFO_LOG(name << " total iter: "<<iteration);
+	  INFO_LOG(name << " residual: "<<residual_out);
 	  INFO_LOG(name << " constraints: "<<COUNT_CONSTRAINTS(projector.getFace()));
 	}
 
@@ -284,7 +285,7 @@ namespace MATH{
 	  y = result - alpha_cg*p;
 	  T fy = projectFunValue(y);
 	  T fx = A.funcValue(result, B);
-	  assert( isFeasible(projector.getPlanes(), result) );
+	  assert( projector.isFeasible(result) );
 
 	  result_is_prop = true;
 	  bool runned_cg = false;
@@ -432,7 +433,7 @@ namespace MATH{
   	  	if( MB::residual_out <= MB::tolerance_factor )
   	  	  break;
 
-  		if ( !(isFeasible(MB::projector.getPlanes(), MB::y)) ){
+  		if ( MB::y.size() <= 0 || !(MB::projector.isFeasible(MB::y)) ){
   		  this->ExpMonotonicStep(result);
 		  MB::iteration ++;
   	  	}else if( !result_is_prop ){
@@ -464,15 +465,7 @@ namespace MATH{
   public:
 	FixedSparseMatrix(const SparseMatrix<T> &M):A(M){
 	  assert_eq(A.rows(),A.cols());
-	  diag_A.resize(A.rows());
-	  for(int k=0;k<A.outerSize();++k)
-		for(typename Eigen::SparseMatrix<T>::InnerIterator it(A,k);it;++it){
-		  if (it.col() == it.row()){
-			assert_eq(it.row(),k);
-			diag_A[k] = it.value();
-			break;
-		  }
-		}
+	  getDiagonal(A, diag_A);
 	}
 	
 	// result = A*x
@@ -521,7 +514,7 @@ namespace MATH{
 	  
 	  LowerBoundProjector<T> projector(L);
 	  DiagonalInFacePreconSolver<T,MAT> precond(A, projector.getFace());
-	  MPRGP<T, MAT, LowerBoundProjector<T>, DiagonalInFacePreconSolver<T,MAT> > solver(A, B, precond, projector, max_it, tol);
+	  MPRGPMonotonic<T, MAT, LowerBoundProjector<T>, DiagonalInFacePreconSolver<T,MAT> > solver(A, B, precond, projector, max_it, tol);
 	  return solver.solve(x);
 	}
   };
@@ -599,7 +592,7 @@ namespace MATH{
 	  VVec4X planes;
 	  int code = -1;
 	  if (loadQP(A,B,planes,x,file_name)){
-		code = solve(FixedSparseMatrix<double>(A),B,planes,x,tol,max_it,solver_name);
+		code = solve(FixedSparseMatrix<T>(A),B,planes,x,tol,max_it,solver_name);
 	  }
 	  return code;
 	}
@@ -715,6 +708,62 @@ namespace MATH{
 	  }
 	}
 
+  };
+
+  template<typename T=double>
+  class MPRGPDecoupledCon{
+
+	typedef Eigen::Matrix<T,-1,1> Vec;
+	
+  public:
+	template <typename MAT, bool preconditioned = true>
+	static int solve(const MAT &A,const Vec &B, DecoupledConProjector<T> &projector, Vec &x, 
+					 const T tol=1e-3, const int max_it = 1000, 
+					 const std::string solver_name = "MPRGP"){
+
+	  assert_eq(A.rows(),B.size());
+	  assert_eq(A.rows(),x.size());
+	  FUNC_TIMER_CLASS fun_timer(solver_name + " total solving");
+
+	  UTILITY::Timer timer;
+	  timer.start();
+	  typedef DiagonalInFacePreconSolver<T,MAT, !preconditioned> Preconditioner;
+	  Preconditioner precond(A, projector.getFace());
+	  timer.stop(solver_name + " time for preconditioning setup: ");
+
+	  typedef MPRGPMonotonic<T, MAT, DecoupledConProjector<T>, Preconditioner > MPRGPSolver;
+	  MPRGPSolver solver(A, B, precond, projector, max_it, tol);
+	  solver.setName(solver_name);
+	  const int rlst_code = solver.solve(x);
+	  return rlst_code;
+	}
+
+	template <typename MAT>
+	static int solve(const MAT &A,const Vec &B,const SparseMatrix<T> &J,const Vec &c,Vec &x, 
+					 const T tol=1e-3, const int max_it = 1000, 
+					 const std::string solver_name = "MPRGP"){
+
+	  const SparseMatrix<T> JJt_mat = J*J.transpose();
+	  assert_eq_ext(JJt_mat.nonZeros(), J.rows(), "Matrix J is not decoupled.\n" << J);
+	  Vec JJt;
+	  getDiagonal(JJt_mat, JJt);
+	  DecoupledConProjector<T> projector(J, JJt, c);
+	  return solve(A, B, projector, x, tol, max_it, solver_name);
+	}
+
+	static int solve(const std::string file_name, Vec&x, 
+					 const T tol=1e-3, const int max_it = 1000,
+					 const std::string solver_name = "MPRGP"){
+
+	  SparseMatrix<T> A, J;
+	  Vec B, c;
+	  int code = -1;
+	  if ( loadQP(A, B, J, c, x, file_name) ){
+		FixedSparseMatrix<T> FA(A);
+		code = solve(FA, B, J, c, x, tol, max_it, solver_name);
+	  }
+	  return code;
+	}
   };
   
 }//end of namespace

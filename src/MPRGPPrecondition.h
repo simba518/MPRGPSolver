@@ -34,31 +34,39 @@ namespace MATH{
   };
 
   // Jacobian preconditioner
-  template <typename T, typename MAT >
+  template <typename T, typename MAT, bool NO_PRECOND=false >
   class DiagonalInFacePreconSolver{
 
 	typedef Eigen::Matrix<T,-1,1> Vec;
 
   public:
-	DiagonalInFacePreconSolver(const MAT &M,const vector<char>& face):_matrix(M),_face(face){}
-	int solve(const Vec&rhs, Vec&result, const Vec &phi){
+	DiagonalInFacePreconSolver(const MAT &M,const vector<char> &face):face(face){
 
-	  result.resize(rhs.size());
-	  assert_eq(_face.size(), rhs.size());
-	  result = phi;
-	  for(size_t i=0; i<rhs.size(); i++){
-	  	assert_ge( _matrix.diag(i), ScalarUtil<T>::scalar_eps );
-	  	// if( 0 == _face[i] )
-		//   result[i]=rhs[i]/_matrix.diag(i);
-	  	// else
-	  	//   result[i]=0.0f;
+	  invert_diag.resize(M.rows());
+	  if (!NO_PRECOND){
+		for (int i = 0; i < invert_diag.size(); ++i){
+		  assert_ge( M.diag(i), ScalarUtil<T>::scalar_eps );
+		  invert_diag[i] = 1.0/M.diag(i);
+		}
+	  }
+	}
+	int solve(const Vec &g, Vec &z, const Vec &phi)const{
+
+	  if (!NO_PRECOND){
+		z.resize(phi.size());
+		for(int i = 0; i < z.size(); i++){
+		  assert_eq(invert_diag[i], invert_diag[i]);
+		  z[i] = phi[i]*invert_diag[i];
+		}
+	  }else{
+		z = phi;
 	  }
 	  return 0;
 	}
 
   private:
-	const MAT &_matrix;
-	const vector<char>& _face;
+	Vec invert_diag;
+	const vector<char> &face;
   };
 
   // Jacobian preconditioner

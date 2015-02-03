@@ -5,7 +5,8 @@
 // #include "test_simulation.h"
 // #include "test_precondition.h"
 // #include "test_pcg.h"
-#include "test_ICASolver.h"
+// #include "test_ICASolver.h"
+#include "test_decoupled_mprgp.h"
 using namespace MATH;
 
 #include <float.h>
@@ -42,9 +43,12 @@ int main(int argc, char *argv[]){
   // comparePrecondConvergency();
   // testpcg();
 
-  test_GaussSeidel();
-  test_ProjectedGaussSeidel();
-  test_ICASolver();
+  // test_GaussSeidel();
+  // test_ProjectedGaussSeidel();
+  // test_ICASolver();
+
+  test_DecoupledMprgp();
+  // test_MPRGPLowerBound();
 
   return 0;
 }

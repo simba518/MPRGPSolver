@@ -22,14 +22,14 @@ namespace MATH{
   public:
     LowerBoundProjector(const Vec &L):_L(L){
 	  _face.resize(_L.size());
-	  _face.assign(_L.size(),0);
+	  _face.assign(_L.size(),char(0));
 	}
 	const vector<char> &getFace()const{
 	  return _face;
 	}
 
 	// return the largest step in direction -D.
-	T stepLimit(const Vec& X,const Vec& D, const T alpha_cg=ScalarUtil<T>::scalar_max) const{
+	T stepLimit(const Vec&X,const Vec&D,const T alpha_cg=ScalarUtil<T>::scalar_max)const{
 
 	  assert_eq(D.size(), X.size());
 	  assert_eq(_L.size(), X.size());
@@ -58,11 +58,9 @@ namespace MATH{
 		for(size_t i=0;i<in.size();i++)
 		  out[i]=std::max<T>(in[i],_L[i]);
 	}
-
 	void PHI(const Vec& in,Vec& out){
 	  MASK_FACE(in,out,_face);
 	}
-
 	void BETA(const Vec& in,Vec& out, const Vec&phi){
 
 	  assert_eq(in.size(), _face.size());
@@ -75,13 +73,12 @@ namespace MATH{
 			out[i]=std::min<T>(in[i],0.0f);
 		}
 	}
-
 	void DECIDE_FACE(const Vec& x){
 
 	  assert_eq(x.size(), _L.size());
 	  assert_eq(x.size(), _face.size());
 	  const Vec& L = _L;
-	  _face.assign(x.size(),0);
+	  _face.assign(x.size(),char(0));
 	  OMP_PARALLEL_FOR_
 		for(size_t i=0;i<x.size();i++){
 		  if(abs(x[i]-L[i]) < ScalarUtil<T>::scalar_eps)
@@ -89,7 +86,6 @@ namespace MATH{
 		}
 
 	}
-
 	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi){
 
 	  assert_eq(x.size(), _L.size());
@@ -105,6 +101,16 @@ namespace MATH{
 		phiTphi+=phiTilde*phi[i];
 	  }
 	  return phiTphi;
+	}
+
+	bool isFeasible(const Vec &x)const{
+
+	  OMP_PARALLEL_FOR_
+		for(size_t i=0; i < x.size();i++){
+		  if( x[i] < _L[i]-ScalarUtil<T>::scalar_eps )
+			return false;
+		}
+	  return true;
 	}
 	
   private:
@@ -122,7 +128,7 @@ namespace MATH{
 	BoxBoundProjector(const Vec &L, const Vec &H):_L(L),_H(H){
 	  assert_eq(L.size(), H.size());
 	  _face.resize(_L.size());
-	  _face.assign(_L.size(), 0);
+	  _face.assign(_L.size(), char(0));
 	}
 	const vector<char> &getFace()const{
 	  return _face;
@@ -183,7 +189,7 @@ namespace MATH{
 	  assert_eq(x.size(), _face.size());
 	  const Vec &L = _L;
 	  const Vec &H = _H;
-	  _face.assign(x.rows(),0);
+	  _face.assign(x.rows(),char(0));
 	  OMP_PARALLEL_FOR_
 		for(size_t i=0;i<x.rows();i++)
 		  if(abs(x[i]-L[i]) < ScalarUtil<T>::scalar_eps)
@@ -211,6 +217,17 @@ namespace MATH{
 	  }
 	  return phiTphi;
 	}
+
+	bool isFeasible(const Vec &x)const{
+
+	  OMP_PARALLEL_FOR_
+		for(size_t i=0; i < x.size();i++){
+		   /// @bug lsw, not test
+		  if( x[i] < _L[i]-ScalarUtil<T>::scalar_eps ||x[i]>_H[i]+ScalarUtil<T>::scalar_eps)
+			return false;
+		}
+	  return true;
+	}
 	
   private:
 	const Vec &_L;
@@ -218,7 +235,7 @@ namespace MATH{
 	vector<char> _face;
   };
 
-  // support plane constraints
+  // support plane constraints: n.dot(x) + p >= 0, where n and x \in R^3.
   template <typename T>
   class PlaneProjector{
 
@@ -234,14 +251,14 @@ namespace MATH{
 
 	  assert_eq(_planes.size()*3, feasible_x.size());
 	  updateConstraints();
-	  assert_ext(isFeasible(_planes,feasible_x),"x = "<<feasible_x.transpose());
+	  assert_ext(isFeasible(feasible_x),"x = "<<feasible_x.transpose());
 	}
 
 	void updateConstraints(){
 	  
 	  const size_t x_size = _planes.size()*3;
 	  _face.resize(x_size);
-	  _face.assign(x_size,0);
+	  _face.assign(x_size,char(0));
 
 	  _face_indices.resize(x_size/3);
 	  for (int i = 0; i < _face_indices.size(); ++i){
@@ -268,7 +285,7 @@ namespace MATH{
 	  const size_t num_points = _face_indices.size();
 	  assert_eq(D.size(),num_points*3);
 	  assert_eq(D.size(), X.size());
-	  assert_ext(isFeasible(_planes, X), "alpha_cg: "<<alpha_cg);
+	  assert_ext(isFeasible(X), "alpha_cg: "<<alpha_cg);
 
 	  T alpha = (alpha_cg == ScalarUtil<T>::scalar_max ? alpha_cg: (alpha_cg+ScalarUtil<T>::scalar_eps));
 	  assert_gt(alpha, 0.0);
@@ -282,7 +299,7 @@ namespace MATH{
 	  	}
 	  }
 	  assert_ge(alpha, 0.0f);
-	  assert_ext(isFeasible(_planes, X-alpha*D), "alpha: "<<alpha<<", alpha_cg: "<<alpha_cg);
+	  assert_ext(isFeasible(X-alpha*D), "alpha: "<<alpha<<", alpha_cg: "<<alpha_cg);
 	  return alpha;
 	}
 
@@ -302,7 +319,7 @@ namespace MATH{
 		assert(found);
 	  	out.template segment<3>(i) = v;
 	  }
-	  assert_ext(isFeasible(_planes,out),"x="<<in.transpose()<<"\nproject(x)="<<out.transpose());
+	  assert_ext(isFeasible(out),"x="<<in.transpose()<<"\nproject(x)="<<out.transpose());
 	}
 
 	void PHI(const Vec& in,Vec& out){
@@ -381,7 +398,7 @@ namespace MATH{
 
 	T PHITPHI(const Vec& x,const T&alphaBar,const Vec&phi){
 
-	  // assert_ext(isFeasible(_planes,x),"x="<<x.transpose());
+	  // assert_ext(isFeasible(x),"x="<<x.transpose());
 	  assert_gt(alphaBar, ScalarUtil<T>::scalar_eps);
 	  assert_eq(x.size() % 3,0);
 	  assert_eq(x.size(), phi.size());
@@ -391,6 +408,10 @@ namespace MATH{
 	  const T phitphi = ((x-px).dot(phi))*(1.0/alphaBar);
 	  // assert_ge(phitphi,-ScalarUtil<T>::scalar_eps);
 	  return phitphi>0.0f?phitphi:0.0f;
+	}
+
+	bool isFeasible(const Vec &x)const{
+	  return MATH::isFeasible(this->getPlanes(), x);
 	}
 
   protected:
@@ -423,6 +444,135 @@ namespace MATH{
 	const Vec feasible_x;
 	vector<char> _face;
 	vector<vector<int> > _face_indices;
+  };
+
+  // support decoupled constraints: J*x >= c, where J*J^t is diagonal.
+  template <typename T>
+  class DecoupledConProjector{
+
+	typedef Eigen::Matrix<T,-1,1> Vec;
+	
+  public:
+	DecoupledConProjector(const SparseMatrix<T> &J, const Vec &JJt, const Vec &c):
+	  J(J),JJt(JJt),c(c){
+
+	  assert_eq(J.rows(), JJt.size());
+	  assert_eq(c.size(), J.rows());
+	  face.resize(J.rows());
+	  face.assign(face.size(),char(0));
+	}
+	const vector<char> &getFace()const{
+	  return face;
+	}
+
+	// return the largest step in direction -D.
+	T stepLimit(const Vec &X,const Vec&D,const T alpha_cg=ScalarUtil<T>::scalar_max)const{
+
+	  T alpha = (alpha_cg == ScalarUtil<T>::scalar_max ? alpha_cg: (alpha_cg+ScalarUtil<T>::scalar_eps));
+	  assert_gt(alpha, 0.0);
+	  assert_eq(X.size(), D.size());
+	  assert_eq(J.cols(), X.size());
+	  
+	  const Vec Jx = J*X;
+	  const Vec Jd = J*D;
+	  for (int i = 0; i < Jd.size(); ++i){
+		if (Jd[i] > ScalarUtil<T>::scalar_eps && Jx[i] > c[i]){
+		  const T ti = (Jx[i]-c[i])/Jd[i];
+		  assert_eq(ti,ti);
+		  alpha = std::min<T>(alpha, ti);
+		}
+	  }
+
+	  assert_ge(alpha, 0.0f);
+	  return alpha;
+	}
+	void project(const Vec &x,Vec &y) const{
+
+	  assert_eq(x.size(), J.cols());
+	  Vec lambda = c - J*x;
+	  OMP_PARALLEL_FOR_
+		for(int i = 0; i < lambda.size(); i++){
+		  assert_ge(JJt[i], ScalarUtil<T>::scalar_eps);
+		  lambda[i] = std::max<T>(lambda[i]/JJt[i], 0.0);
+		}
+	  y = x + J.transpose()*lambda;
+	}
+	void PHI(const Vec &g,Vec &phi) const{
+
+	  Vec lambda = J*g;
+	  assert_eq(J.cols(), g.size());
+	  assert_eq(lambda.size(), (int)face.size());
+	  for (size_t i = 0; i < face.size(); ++i){
+		if(0 == face[i]){
+		  lambda[i] = 0;
+		}else{
+		  lambda[i] = -lambda[i]/JJt[i];
+		}
+	  }
+	  phi = g+J.transpose()*lambda;
+	}
+	void BETA(const Vec &g, Vec &beta, const Vec &phi){
+
+	  Vec lambda = J*g;
+	  for (size_t i = 0; i < face.size(); ++i){
+	  	if(0 != face[i])
+	  	  lambda[i] = std::max<T>(0.0,lambda[i]/JJt[i]);
+	  }
+	  beta = g-J.transpose()*lambda;
+	  const T norm_phi = phi.norm();
+	  if(norm_phi >= ScalarUtil<T>::scalar_eps){
+		beta -= (beta.dot(phi)/(norm_phi*norm_phi))*phi;
+	  }
+
+	  // cout << "face: ";
+	  // for (int i = 0; i < face.size(); ++i){
+	  // 	cout << (int)face[i] << " ";
+	  // }
+	  // cout << "\ng: " << g.transpose() << endl;
+	  // cout << "phi: " << phi.transpose() << endl;
+	  // cout << "beta: " << beta.transpose() << endl;
+	}
+	void DECIDE_FACE(const Vec& x){
+
+	  assert_eq(x.size(), J.cols());
+	  assert_eq(c.size(), J.rows());
+	  face.assign(c.size(),char(0));
+	  const Vec Jx = J*x;
+	  OMP_PARALLEL_FOR_
+		for(int i = 0; i < c.size(); i++){
+		  if(abs(Jx[i]-c[i]) < ScalarUtil<T>::scalar_eps)
+			face[i] = 1;
+		}
+	}
+	T PHITPHI(const Vec &x, const T alpha_bar, const Vec &phi) const{
+
+	  assert_gt(alpha_bar, ScalarUtil<T>::scalar_eps);
+	  assert_eq(x.size(), phi.size());
+	  const Vec x_alpha_phi = x-alpha_bar*phi;
+	  Vec px;
+	  project(x_alpha_phi, px);
+	  const T phitphi = ((x-px).dot(phi))*(1.0/alpha_bar);
+	  return phitphi > 0.0 ? phitphi : 0.0;
+	}
+
+	bool isFeasible(const Vec &x)const{
+
+	  assert_eq(x.size(), J.cols());
+	  assert_eq(c.size(), J.rows());
+	  const Vec Jx = J*x;
+	  OMP_PARALLEL_FOR_
+		for(int i = 0; i < c.size(); i++){
+		  if( Jx[i] < c[i] - ScalarUtil<T>::scalar_eps)
+			return false;
+		}
+	  return true;
+	}
+	
+  private:
+	const SparseMatrix<T> &J;
+	const Vec &JJt; // diagonal elements of J*J^t
+	const Vec &c;
+	vector<char> face;
   };
 
 }//end of namespace
