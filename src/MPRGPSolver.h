@@ -1,6 +1,7 @@
 #ifndef _MPRGPSOLVER_H_
 #define _MPRGPSOLVER_H_
 
+#include <string>
 #include "MPRGPPrecondition.h"
 #include "MPRGPProjection.h"
 
@@ -24,14 +25,14 @@ namespace MATH{
 	MPRGPBase(const MAT &A,const Vec &B,
 			  PRECONDITION &precond, PROJECTOIN &projector,
 			  const int max_it = 1000, const T tol=1e-3):
-	  A(A), B(B), precond(precond), projector(projector) {
+	  A(A), B(B), precond(precond), projector(projector), name("MPRGP") {
 
 	  setParameters(tol,max_it);
 	  gamma=1.0f;
 	  alpha_bar=2.0/specRad(A,NULL,tol);
 	  iterations_out = 0;
 	  residual_out = 0.0f;
-	  DEBUG_LOG(setprecision(16) << "alpha_bar: " << alpha_bar);
+	  DEBUG_LOG(name << setprecision(16) << " alpha_bar: " << alpha_bar);
 	}
 	
 	void setParameters(T toleranceFactor,size_t maxIterations) {
@@ -79,7 +80,11 @@ namespace MATH{
 	  return normTmpOut;
 	}
 
-	bool writeVTK(const Vec &x, const string filename)const{
+	void setName(const std::string name){
+	  this->name = name;
+	}
+
+	bool writeVTK(const Vec &x, const std::string filename)const{
 
 	  Vec points(x.size()*4);
 	  points.head(x.size()) = x;
@@ -90,7 +95,7 @@ namespace MATH{
 	  ofstream out;
 	  out.open(filename.c_str());
 	  if (!out.is_open()){
-		ERROR_LOG("failed to open this file: "<<filename);
+		ERROR_LOG(name << " failed to open this file: "<<filename);
 		return false;
 	  }
 
@@ -133,11 +138,11 @@ namespace MATH{
 	  return true;
 	}
 	void printSolveInfo()const{
-	  INFO_LOG("cg steps: "<< num_cg);
-	  INFO_LOG("exp steps: "<< num_exp);
-	  INFO_LOG("prop steps: "<< numprop);
-	  INFO_LOG("MPRGP iter: "<<iteration);
-	  INFO_LOG("constraints: "<<COUNT_CONSTRAINTS(projector.getFace()));
+	  INFO_LOG(name << " cg steps: "<< num_cg);
+	  INFO_LOG(name << " exp steps: "<< num_exp);
+	  INFO_LOG(name << " prop steps: "<< numprop);
+	  INFO_LOG(name << " total iter: "<<iteration);
+	  INFO_LOG(name << " constraints: "<<COUNT_CONSTRAINTS(projector.getFace()));
 	}
 
   protected:
@@ -153,7 +158,7 @@ namespace MATH{
 	  result_code = -1;
 	  num_cg = num_exp = numprop = iteration = 0;
 
-	  debug_fun(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
+	  debug_fun(fun_val = A.funcValue(result, B); cout << name << setprecision(12) << " func = " << fun_val<<endl;);
 	}
 	inline T computeGradients(const Vec &g, const bool comp_phi = true){
 
@@ -186,7 +191,7 @@ namespace MATH{
 	}
 	inline void CGStep(const Vec &AP, T alpha_cg, Vec &result){
 
-	  DEBUG_LOG("cg_step");
+	  DEBUG_LOG(name << " cg_step");
 	  num_cg ++;
 
 	  assert_eq(alpha_cg, alpha_cg);
@@ -196,11 +201,11 @@ namespace MATH{
 	  precond.solve(g,z, phi);   assert_eq(z, z);  assert_ge(g.dot(z),0);
 	  const T beta = (z.dot(AP)) / (p.dot(AP)); assert_eq(beta, beta);
 	  p = z-beta*p;
-	  debug_fun(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
+	  debug_fun(fun_val = A.funcValue(result, B); cout << name << setprecision(12) << " func = " << fun_val<<endl;);
 	}
 	inline void ExpStep(const Vec &AP, T alpha_f, Vec &result){
 
-	  DEBUG_LOG("exp_step");
+	  DEBUG_LOG(name << " exp_step");
 	  num_exp ++;
 
 	  assert_eq(alpha_f, alpha_f);
@@ -217,11 +222,11 @@ namespace MATH{
 	  projector.PHI(g, phi); 
 	  precond.solve(g,z, phi); assert_eq(z, z);
 	  p = z;
-	  debug_fun(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
+	  debug_fun(fun_val = A.funcValue(result, B); cout << name << setprecision(12) << " func = " << fun_val<<endl;);
 	}
 	inline void PropStep(Vec &result){
 
-	  DEBUG_LOG("prop_step");
+	  DEBUG_LOG(name << " prop_step");
 	  numprop ++;
 
 	  const Vec &D = beta;
@@ -239,7 +244,7 @@ namespace MATH{
 	  projector.PHI(g, phi);
 	  precond.solve(g,z, phi); assert_eq(z, z);
 	  p = z;
-	  debug_fun(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
+	  debug_fun(fun_val = A.funcValue(result, B); cout<< name << setprecision(12) << " func = " << fun_val<<endl;);
 	}
 
 	inline T projectFunValue(const Vec &x)const{
@@ -249,7 +254,7 @@ namespace MATH{
 	}
 	inline void ExpMonotonicStep(Vec &result){
 
-	  DEBUG_LOG("exp_step");
+	  DEBUG_LOG(name << " exp_step");
 	  num_exp ++;
 
 	  projector.project(result, y);
@@ -267,7 +272,7 @@ namespace MATH{
 	  precond.solve(g,z, phi); assert_eq(z, z);
 	  p = z;
 
-	  debug_fun(fun_val = A.funcValue(result, B); cout<< setprecision(12) << "func = " << fun_val<<endl;);
+	  debug_fun(fun_val = A.funcValue(result, B); cout<< name << setprecision(12) << " func = " << fun_val<<endl;);
 	}
 	inline T CGMonotonicStep(Vec &result, bool &result_is_prop){
 
@@ -282,10 +287,11 @@ namespace MATH{
 	  assert( isFeasible(projector.getPlanes(), result) );
 
 	  result_is_prop = true;
+	  bool runned_cg = false;
 	  while( result_is_prop && residual_out > tolerance_factor
 			 && fy<=fx && iteration < max_iterations ){
 
-		debug_fun(fun_val = fy; cout<< setprecision(12) << "func = " << fun_val<<endl;);
+		debug_fun(fun_val = fy; cout<< name << setprecision(12) << " func = " << fun_val<<endl;);
 		result = y;
 		g -= alpha_cg*AP;
 		projector.PHI(g, phi);  assert_ge(g.dot(phi),0);
@@ -294,6 +300,7 @@ namespace MATH{
 		const T beta = (z.dot(AP)) / (p.dot(AP)); assert_eq(beta, beta);
 		p = z-beta*p;
 		residual_out = computeGradients(g, false);
+		DEBUG_LOG(name << " residual = " << residual_out);
 		result_is_prop = proportional(result);
 
 		A.multiply(p, AP);
@@ -305,7 +312,11 @@ namespace MATH{
 
 		num_cg ++;
 		iteration ++;
+		runned_cg = true;
 	  }
+
+	  if (!runned_cg)
+		iteration ++;
 
 	  return residual_out;
 	}
@@ -333,6 +344,7 @@ namespace MATH{
 	int result_code;
 	int num_cg, num_exp, numprop, iteration;
 	T fun_val;
+	std::string name;
   };
 
   template <typename T, typename MAT, typename PROJECTOIN,typename PRECONDITION>
@@ -348,12 +360,12 @@ namespace MATH{
 
 	int solve(Vec &result){
 
-	  FUNC_TIMER_CLASS timer("mprgp solving");
+	  FUNC_TIMER_CLASS timer(MB::name + " solving");
 	  this->initialize(result);
 
 	  for( MB::iteration = 0; MB::iteration < MB::max_iterations; MB::iteration++ ){
 
-	  	DEBUG_LOG("mprgp step "<<MB::iteration);
+	  	DEBUG_LOG(MB::name << " step "<<MB::iteration);
 	  	MB::residual_out = this->computeGradients(MB::g);
 
 	  	if( MB::residual_out <= MB::tolerance_factor ){
@@ -381,7 +393,7 @@ namespace MATH{
 	  	}
 	  }
 
-	  ERROR_LOG_COND("MPRGP is not convergent with "<< MB::iteration << " iterations."<<endl, (MB::iteration < MB::max_iterations));
+	  ERROR_LOG_COND(MB::name << " is not convergent with "<< MB::iteration << " iterations."<<endl, (MB::iteration < MB::max_iterations));
 	  debug_fun( this->printSolveInfo() );
 	  return MB::result_code;
 	}
@@ -401,18 +413,21 @@ namespace MATH{
 
   	int solve(Vec &result){
 
-	  FUNC_TIMER_CLASS timer("monotonic mprgp solving");
+	  FUNC_TIMER_CLASS timer(MB::name + " solving");
   	  this->initialize(result);
 
   	  for( MB::iteration = 0; MB::iteration < MB::max_iterations; ){
 
   	  	MB::residual_out = this->computeGradients(MB::g);
+		DEBUG_LOG(MB::name << " residual = " << MB::residual_out);
   	  	if( MB::residual_out <= MB::tolerance_factor )
   	  	  break;
 
 		bool result_is_prop = MB::proportional(result);
-  	  	if(result_is_prop)
+  	  	if(result_is_prop){
   		  MB::residual_out = this->CGMonotonicStep(result, result_is_prop);
+		  DEBUG_LOG(MB::name << " residual = " << MB::residual_out);
+		}
 
   	  	if( MB::residual_out <= MB::tolerance_factor )
   	  	  break;
@@ -433,7 +448,7 @@ namespace MATH{
 	  
   	  MB::result_code = MB::residual_out <= MB::tolerance_factor ? 0 : -1;
   	  MB::iterations_out = MB::iteration;
-  	  ERROR_LOG_COND("MPRGP is not convergent with "<< MB::iteration << " iterations."<<endl, (MB::iteration < MB::max_iterations));
+  	  ERROR_LOG_COND(MB::name << " is not convergent with "<< MB::iteration << " iterations."<<endl, (MB::iteration < MB::max_iterations));
 
 	  debug_fun(MB::projector.DECIDE_FACE(result));
   	  debug_fun( this->printSolveInfo() );
@@ -539,47 +554,52 @@ namespace MATH{
 	
   public:
 	template <typename MAT, typename Preconditioner=DiagonalPlanePreconSolver<T,MAT, false> >
-	static int solve(const MAT &A,const Vec &B, PlaneProjector<T> &projector, Vec &x, const T tol=1e-3, const int max_it = 1000){
+	static int solve(const MAT &A,const Vec &B, PlaneProjector<T> &projector, Vec &x, 
+					 const T tol=1e-3, const int max_it = 1000, const std::string solver_name = "MPRGP"){
 
 	  assert_eq(A.rows(),B.size());
 	  assert_eq(A.rows(),x.size());
-	  FUNC_TIMER_CLASS fun_timer("total solving");
+	  FUNC_TIMER_CLASS fun_timer(solver_name + " total solving");
 
 	  UTILITY::Timer timer;
 	  timer.start();
 	  Preconditioner precond(A, projector.getFace(), projector.getPlanes(), projector.getFaceIndex());
-	  timer.stop("time for preconditioning setup: ");
+	  timer.stop(solver_name + " time for preconditioning setup: ");
 
 	  typedef MPRGPMonotonic<T, MAT, PlaneProjector<T>, Preconditioner > MPRGPSolver;
 	  MPRGPSolver solver(A, B, precond, projector, max_it, tol);
+	  solver.setName(solver_name);
 	  const int rlst_code = solver.solve(x);
 	  return rlst_code;
 	}
 
 	template <typename MAT>
-	static int solve(const MAT &A,const Vec &B, const VVVec4X &planes_for_each_node, Vec &x, const T tol=1e-3, const int max_it = 1000){
+	static int solve(const MAT &A,const Vec &B, const VVVec4X &planes_for_each_node, Vec &x, 
+					 const T tol=1e-3, const int max_it = 1000, const std::string solver_name = "MPRGP"){
 
 	  PlaneProjector<T> projector(planes_for_each_node, x);
-	  return solve(A, B, projector, x, tol, max_it);
+	  return solve(A, B, projector, x, tol, max_it, solver_name);
 	}
 
 	template <typename MAT>
-	static int solve(const MAT &A,const Vec &B, const VVec4X &planes, Vec &x, const T tol=1e-3, const int max_it = 1000){
+	static int solve(const MAT &A,const Vec &B, const VVec4X &planes, Vec &x, 
+					 const T tol=1e-3, const int max_it = 1000, const std::string solver_name = "MPRGP"){
 
 	  VVVec4X planes_for_each_node;
 	  convert<T>(planes, planes_for_each_node, x.size()/3);
-	  return solve(A,B,planes_for_each_node, x, tol, max_it);
+	  return solve(A,B,planes_for_each_node, x, tol, max_it, solver_name);
 	}
 
 	// load the problem from file, then solve it.
-	static int solve(const string file_name, Vec&x, const T tol=1e-3, const int max_it = 1000){
+	static int solve(const std::string file_name, Vec&x, const T tol=1e-3, 
+					 const int max_it = 1000, const std::string solver_name = "MPRGP"){
 
 	  SparseMatrix<T> A;
 	  Vec B;
 	  VVec4X planes;
 	  int code = -1;
 	  if (loadQP(A,B,planes,x,file_name)){
-		code = solve(FixedSparseMatrix<double>(A),B,planes,x,tol,max_it);
+		code = solve(FixedSparseMatrix<double>(A),B,planes,x,tol,max_it,solver_name);
 	  }
 	  return code;
 	}

@@ -1,6 +1,7 @@
 #ifndef _FLEXIBLEPCG_H_
 #define _FLEXIBLEPCG_H_
 
+#include <string>
 #include "MPRGPPrecondition.h"
 
 namespace MATH{
@@ -23,13 +24,19 @@ namespace MATH{
 	
   public:
 	FlexiblePCG(const MAT &A,PRECONDITIONER &precond,const T tol=1e-3, const int max_it=1e3):
-	  A(A), precond(precond), tol(tol), max_it(max_it){}
+	  A(A), precond(precond), tol(tol), max_it(max_it), name("FlexiblePCG"){}
 
 	int solve(const VEC &b, VEC &x){
 	  
 	  r = b-A*x;
 	  precond.solve(r, z, r);
 	  p = z;
+
+	  debug_fun(printFuncValue(A,b,x));
+	  const T residual = r.norm();
+	  DEBUG_LOG(name << " residual = " << residual);
+	  if(residual <= tol)
+		return 0;
 	  
 	  if (FLEXIBLE)
 		r0 = r;
@@ -43,7 +50,9 @@ namespace MATH{
 		x += alpha*p;
 		debug_fun(printFuncValue(A,b,x));
 		r -= alpha*Ap;
-		if(r.norm() <= tol)
+		const T residual = r.norm();
+		DEBUG_LOG(name << " residual = " << residual);
+		if(residual <= tol)
 		  break;
 	
 		precond.solve(r, z, r);
@@ -57,13 +66,17 @@ namespace MATH{
 		p = z+beta*p;
 	  }
 
-	  INFO_LOG("iterations: "<< it);
+	  INFO_LOG(name << " iterations: "<< it);
 	  return it<=max_it ? 0:-1;
+	}
+
+	void setName(const std::string name){
+	  this->name = name;
 	}
 
 	void printFuncValue(const MAT& A, const VEC &b, const VEC &x)const{
 	  const T f = (x.transpose().dot(A*x)*0.5-x.transpose().dot(b));
-	  cout<< setprecision(12) << "func = " << f  << endl;
+	  cout << name << setprecision(12) << " func = " << f  << endl;
 	}
 			
   private:
@@ -73,6 +86,7 @@ namespace MATH{
 	T tol;
 	int max_it;
 	VEC r, z, p, Ap, r0;
+	std::string name;
   };
 
 }//end of namespace

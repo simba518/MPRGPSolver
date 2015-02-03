@@ -117,6 +117,42 @@ namespace MATH{
 	return out;
   }
 
+  // convert plane constraints to A and c where: A*x >= c.
+  template<typename T, typename VECTOR>
+  void convert(const VVVEC4X_T &in, Eigen::SparseMatrix<T> &A, VECTOR &c){
+
+	typedef vector<Eigen::Triplet<T,int> > TRIPS;
+	TRIPS trips;
+	std::vector<T> rhs;
+	trips.reserve(in.size()*3);
+	rhs.reserve(in.size());
+
+	for (size_t vert_id = 0; vert_id < in.size(); ++vert_id){
+	  for (size_t plane_id = 0; plane_id < in[vert_id].size(); ++plane_id){
+		const T p = in[vert_id][plane_id][3];
+		const Eigen::Matrix<T,3,1> n = in[vert_id][plane_id].head(3);
+		const int row = rhs.size();
+		const int col0 = vert_id*3;
+		trips.push_back( Eigen::Triplet<T,int>(row, col0+0, n[0]) );
+		trips.push_back( Eigen::Triplet<T,int>(row, col0+1, n[1]) );
+		trips.push_back( Eigen::Triplet<T,int>(row, col0+2, n[2]) );
+		rhs.push_back(-p);
+	  }
+	}
+	
+	const int num_var = in.size()*3;
+	A.setZero();
+	A.resize(rhs.size(), num_var);
+	A.reserve(trips.size());
+	A.setFromTriplets( trips.begin(), trips.end() );
+	A.makeCompressed();
+  
+	c.resize(rhs.size());
+	for (int i = 0; i < c.size(); ++i){
+	  c[i] = rhs[i];
+	}
+  }
+
   // save the problem to the file: A, B, x0 and the constraints, i.e planes.
   // the problem is: 
   // min_{x} 1/2*x^t*A*x-x^t*B s.t. n_i*x_j+p_i>= 0

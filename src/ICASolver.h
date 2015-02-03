@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include <vector>
+#include <string>
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Sparse>
 #include "MPRGPUtility.h"
@@ -21,7 +22,7 @@ namespace MATH{
 	
   public:
 	GaussSeidel(const int max_it = 1000, const double tol = 1e-4):
-	  max_it(max_it),tol(tol), iterations(-1), residual(-1.0f){}
+	  max_it(max_it),tol(tol), iterations(-1), residual(-1.0f),pB(NULL),name("GaussSeidel"){}
 
 	void reset(const SparseMatrix<double> &B){
 
@@ -29,6 +30,8 @@ namespace MATH{
 	  assert_eq(B.rows(), B.cols());
 	  const int nz = B.nonZeros();
 	  const int r = B.rows();
+
+	  pB = &B;
 	  
 	  Li.resize(r);
 	  Lb.resize(r);
@@ -76,7 +79,6 @@ namespace MATH{
 	  for (iterations = 0; iterations < max_it; ++iterations){
 		
 		rhs = c - Ub*lambda;
-		pre_lambda = lambda;
 
 		for (int row = 0; row < (int)invD.size(); ++row){
 		  for (int i = 0; i < (int)Li[row].size(); ++i){
@@ -88,7 +90,8 @@ namespace MATH{
 			lambda[row] = lambda[row] > 0 ? lambda[row]:0;
 		}
 
-		residual = (pre_lambda-lambda).norm();
+		residual = ((*pB)*lambda-c).norm();
+		DEBUG_LOG(name << " residual = " << residual);
 		if( residual <= tol ){
 		  succ = true;
 		  break;
@@ -104,6 +107,20 @@ namespace MATH{
 	int getIterations()const{
 	  return iterations;
 	}
+
+	void setName(const string name){
+	  this->name = name;
+	}
+
+	void printSolveInfo(const SparseMatrix<double> &B, const VectorXd &c, const VectorXd &lambda)const{
+
+	  INFO_LOG(name << " residual: " << getResidual());
+	  INFO_LOG(name << " iterations: " << getIterations());
+	  INFO_LOG(name << " Eqation residual ||B lambda - c||: " << (B*lambda - c).norm());
+	  INFO_LOG(name << " Complement Cond lambda.dot(B lambda - c): " << lambda.dot((*pB)*lambda-c));
+	  INFO_LOG(name << " lambda: " << lambda.transpose());
+	  INFO_LOG(name << " B lambda - c: " << (B*lambda-c).transpose());
+	}
 	
   protected:
 	const int max_it;
@@ -117,8 +134,137 @@ namespace MATH{
 
 	int iterations;
 	double residual;
+	const SparseMatrix<double> *pB;
+	string name;
   };
   typedef GaussSeidel<true> ProjectedGaussSeidel;
+
+  // 3x3 block GS
+  class BlockGaussSeidel{
+	
+  public:
+	BlockGaussSeidel(const int max_it = 1000, const double tol = 1e-4):
+	  max_it(max_it), tol(tol), iterations(-1), residual(-1.0f), pA(NULL), name("BlockGaussSeidel"){}
+
+	void reset(const SparseMatrix<double> &A){
+	  
+	  // decompose A as: A = La+Da+Ua
+	  // @note in the original paper, we have A = -La+Da-Ua.
+	  pA = &A;
+	  assert_eq(A.rows(), A.cols());
+	  assert_eq(A.rows()%3,0);
+	  const int nz = A.nonZeros();
+	  const int r = A.rows();
+
+	  Ua.resize(r,r);
+	  invDa.resize(r/3);
+
+	  Li.resize(r);
+	  La.resize(r);
+	  for (int i = 0; i < r; ++i){
+		Li[i].clear();
+		Li[i].reserve(min(i,nz/r));
+		La[i].clear();
+		La[i].reserve(min(i,nz/r));
+	  }
+
+	  vector<Triplet<double> > Ua_triplet;
+	  for (int k = 0; k < A.outerSize(); ++k){
+		for (SparseMatrix<double>::InnerIterator it(A,k); it; ++it){
+		  const int r = it.row();
+		  const int c = it.col();
+		  if ( r/3 == c/3 ){
+			invDa[r/3](r%3,c%3) = it.value();
+		  }else{
+			if (r > c){
+			  Li[r].push_back(c);
+			  La[r].push_back(it.value());
+			}else{
+			  Ua_triplet.push_back( Triplet<double>(r,c,it.value()) );
+			}
+		  }
+		}
+	  }
+
+	  Ua.reserve( Ua_triplet.size() );
+	  Ua.setFromTriplets( Ua_triplet.begin(), Ua_triplet.end() );
+	  
+	  for (int i = 0; i < (int)invDa.size(); ++i){
+		invDa[i] = invDa[i].inverse().eval();
+		assert_eq(invDa[i], invDa[i]);
+	  }
+	}
+
+	bool solve(const VectorXd &B, VectorXd &x){
+
+	  {// check dimensions
+		assert_eq(x.size(), Ua.rows());
+		assert_eq(x.size(), (int)invDa.size()*3);
+		assert_eq(x.size(), (int)Li.size());
+		assert_eq(x.size(), (int)La.size());
+	  }
+
+	  bool succ = false;
+	  VectorXd rhs(B.size());
+
+	  residual = ((*pA)*x-B).norm();
+	  DEBUG_LOG(name << " residual = " << residual);
+
+	  for (iterations = 0; iterations < max_it; ++iterations){
+		
+		rhs = B-Ua*x;
+		for (int row = 0; row < x.size(); row+=3){
+		  for (int r = row; r < row+3; ++r){
+			for (int j = 0; j < (int)Li[r].size(); ++j){
+			  const int col = Li[r][j];
+			  rhs[r] -= La[r][j]*x[col];
+			}
+		  }
+		  x.segment<3>(row) = invDa[row/3]*rhs.segment<3>(row);
+		}
+
+		residual = ((*pA)*x-B).norm();
+		DEBUG_LOG(name << " residual = " << residual);
+		if ( residual <= tol ) {
+		  succ = true;
+		  break;
+		}
+	  }
+	  return succ;
+	}
+
+	double getResidual()const{
+	  return residual;
+	}
+
+	int getIterations()const{
+	  return iterations;
+	}
+
+	void setName(const string name){
+	  this->name = name;
+	}
+
+	void printSolveInfo(const SparseMatrix<double>&A,const VectorXd&B,const VectorXd&x)const{
+	  INFO_LOG(name << " residual: " << getResidual());
+	  INFO_LOG(name << " iterations: " << getIterations());
+	}
+	
+  protected:
+	const int max_it;
+	const double tol;
+
+	SparseMatrix<double> Ua;
+	vector<Matrix3d> invDa;
+	vector<vector<int> > Li;
+	vector<vector<double> > La;
+
+	int iterations;
+	double residual;
+
+	const SparseMatrix<double> *pA;
+	string name;
+  };
 
   // implemented the ICA (Iterative Constraints Anticpation) solver of the paper:
   // Implicit Contact Handling for Deformable Objects, EG 2009, 
@@ -129,13 +275,16 @@ namespace MATH{
   class ICASolver{
 	
   public:
-	ICASolver(const int max_it = 1000, const double tol = 1e-4):
-	  max_it(max_it), tol(tol), iterations(-1), residual(-1.0f){}
+	ICASolver(const int max_it = 1000, const double tol = 1e-4, const int gs_max_it = 20, const double gs_tol = 1e-3):
+	  max_it(max_it), tol(tol), iterations(-1), residual(-1.0f), pA(NULL), name("ICASolver"){
+	  PGS = boost::shared_ptr<ProjectedGaussSeidel>(new ProjectedGaussSeidel(gs_max_it, gs_tol));
+	}
 
 	void reset(const SparseMatrix<double> &A){
 	  
 	  // decompose A as: A = La+Da+Ua
 	  // @note in the original paper, we have A = -La+Da-Ua.
+	  pA = &A;
 	  assert_eq(A.rows(), A.cols());
 	  assert_eq(A.rows()%3,0);
 	  const int nz = A.nonZeros();
@@ -207,9 +356,9 @@ namespace MATH{
 		assert_eq(x.size(), (int)Li.size());
 		assert_eq(x.size(), (int)La.size());
 	  }
-	  
+
 	  B = J*(invDa_Mat*J.transpose());
-	  PGS.reset(B);
+	  PGS->reset(B);
 
 	  lambda.resize(J.rows());
 	  lambda.setZero();
@@ -217,10 +366,11 @@ namespace MATH{
 	  bool succ = false;
 	  for (iterations = 0; iterations < max_it; ++iterations){
 
+		// pre_x = x;
 		c = p+J*(invDa_Mat*(LaUa*x));
-		PGS.solve(c, lambda);
-		rhs = J.transpose()*lambda-Ua*x;
-		pre_x = x;
+		PGS->solve(c, lambda);
+		const VectorXd JtL = J.transpose()*lambda;
+		rhs = JtL-Ua*x;
 
 		// 3x3 block GS
 		for (int row = 0; row < x.size(); row+=3){
@@ -233,7 +383,9 @@ namespace MATH{
 		  x.segment<3>(row) = invDa[row/3]*rhs.segment<3>(row);
 		}
 
-		residual = (pre_x-x).norm();
+		// residual = (pre_x-x).norm();
+		residual = ((*pA)*x-J.transpose()*lambda).norm();
+		DEBUG_LOG(name << " residual = " << residual);
 		if ( residual <= tol ) {
 		  succ = true;
 		  break;
@@ -254,15 +406,19 @@ namespace MATH{
 	  return lambda;
 	}
 
+	void setName(const string name){
+	  this->name = name;
+	}
+
 	void printSolveInfo(const SparseMatrix<double> &A, const SparseMatrix<double> &J, 
 						const VectorXd &p, const VectorXd &x)const{
 
-	  INFO_LOG("residual: " << getResidual());
-	  INFO_LOG("iterations: " << getIterations());
-	  INFO_LOG("Eqation residual ||A x - J^t lambda||: " << (A*x - J.transpose()*getLambda()).norm());
-	  INFO_LOG("Complement Cond lambda.dot(J x - p): " << getLambda().dot(J*x-p));
-	  INFO_LOG("lambda: " << getLambda().transpose());
-	  INFO_LOG("J x - p: " << (J*x-p).transpose());
+	  INFO_LOG(name << " residual: " << getResidual());
+	  INFO_LOG(name << " iterations: " << getIterations());
+	  INFO_LOG(name << " Eqation residual ||A x - J^t lambda||: " << (A*x - J.transpose()*getLambda()).norm());
+	  INFO_LOG(name << " Complement Cond lambda.dot(J x - p): " << getLambda().dot(J*x-p));
+	  INFO_LOG(name << " lambda: " << getLambda().transpose());
+	  INFO_LOG(name << " J x - p: " << (J*x-p).transpose());
 	}
 	
   protected:
@@ -277,11 +433,14 @@ namespace MATH{
 	vector<vector<double> > La;
 
 	SparseMatrix<double> B;
-	ProjectedGaussSeidel PGS;
 
 	VectorXd lambda, c, rhs, pre_x;
 	int iterations;
 	double residual;
+
+	const SparseMatrix<double> *pA;
+	string name;
+	boost::shared_ptr<ProjectedGaussSeidel> PGS;
   };
   
 }//end of namespace

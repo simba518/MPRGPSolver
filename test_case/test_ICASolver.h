@@ -24,6 +24,8 @@ void test_GaussSeidel(){
   const bool succ = GS.solve(c, lambda);
   assert(succ);
 
+  // GS.printSolveInfo(B, c, lambda);
+
   assert_le( abs(lambda[0] - 0.812190291031091), 1e-4 );
   assert_le( abs(lambda[1] - (-0.6649698147983967)), 1e-4 );
 
@@ -44,6 +46,7 @@ void test_ProjectedGaussSeidel(){
   lambda.setZero();
 
   const bool succ = PGS.solve(c, lambda);
+  // PGS.printSolveInfo(B, c, lambda);
   assert(succ);
 
   assert_le(PGS.getIterations(), 47);
@@ -69,23 +72,25 @@ void test_ICASolver(){
   const MatrixXd dJ = MatrixXd::Random(m,n);
   const SparseMatrix<double> J = createFromDense(dJ);
 
-  ICASolver ICA(1000, 1e-8);
+  const double tol = 1e-10;
+  ICASolver ICA(100000, tol);
   ICA.reset(A);
 
   const VectorXd p = VectorXd::Random(m);
   VectorXd x = VectorXd::Random(n);
   bool succ = ICA.solve(J, p, x);
+  // ICA.printSolveInfo(A,J,p,x);
   assert(succ);
 
-  assert_le(ICA.getResidual(), 1e-8);
-  assert_le(ICA.getIterations(), 18);
-  assert_le((A*x - J.transpose()*ICA.getLambda()).norm(), 1e-8);
-  assert_le( abs(ICA.getLambda().dot(J*x-p)), 1e-8 );
+  assert_le(ICA.getResidual(), tol);
+  assert_le(ICA.getIterations(), 22);
+  assert_le((A*x - J.transpose()*ICA.getLambda()).norm(), tol);
+  assert_le( abs(ICA.getLambda().dot(J*x-p)), tol );
 
   const VectorXd y = J*x-p;
   for (int i = 0; i < ICA.getLambda().size(); ++i){
     assert_ge(ICA.getLambda()[i], 0.0f);
-	assert_ge(y[i], -1e-8);
+  	assert_ge(y[i], -(tol*n));
   }
 }
 
