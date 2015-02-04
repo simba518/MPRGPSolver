@@ -111,4 +111,35 @@ void test_io(){
   
 }
 
+void test_io2(){
+
+  cout << "test io2" << endl;
+
+  const int n = 5;
+  const int m = 2;
+  const MatrixXd Am = MatrixXd::Random(n,n);
+  const MatrixXd Jm = MatrixXd::Random(m,n);
+  const Eigen::SparseMatrix<double> A = createFromDense(Am);
+  const Eigen::SparseMatrix<double> J = createFromDense(Jm);
+  const Eigen::VectorXd B = VectorXd::Random(A.rows());
+  const Eigen::VectorXd x = VectorXd::Random(A.rows());
+  const Eigen::VectorXd c = VectorXd::Random(J.rows());
+
+  const string fname = "./tempt_test_io.mat";
+  const bool succ_write = writeQP(A, B, J, c, x, fname);
+  assert_ext(succ_write, fname);
+
+  SparseMatrix<double> A2, J2;
+  VectorXd B2, c2, x2;
+  const bool succ_load = loadQP(A2, B2, J2, c2, x2, fname);
+  assert_ext(succ_load, fname);
+
+  assert_eq(x, x2);
+  assert_eq(B, B2);
+  assert_eq(c, c2);
+  assert_eq((J-J2).norm(), 0);
+  assert_eq((A-A2).norm(), 0);
+
+}
+
 #endif /* _TEST_UTILITY_H_ */

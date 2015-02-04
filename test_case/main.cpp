@@ -1,12 +1,12 @@
 // #include "test_solver.h"
 // #include "test_projection.h"
 // #include "test_ActiveSet3D.h"
-// #include "test_utility.h"
+#include "test_utility.h"
 // #include "test_simulation.h"
 // #include "test_precondition.h"
 // #include "test_pcg.h"
 // #include "test_ICASolver.h"
-#include "test_decoupled_mprgp.h"
+// #include "test_decoupled_mprgp.h"
 using namespace MATH;
 
 #include <float.h>
@@ -47,8 +47,11 @@ int main(int argc, char *argv[]){
   // test_ProjectedGaussSeidel();
   // test_ICASolver();
 
-  test_DecoupledMprgp();
+  // test_DecoupledMprgp();
   // test_MPRGPLowerBound();
+
+  test_io();
+  test_io2();
 
   return 0;
 }

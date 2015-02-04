@@ -158,9 +158,12 @@ namespace MATH{
   inline bool writeSparseMatrix(ofstream &out, const Eigen::SparseMatrix<T> &A){
 
 	const size_t A_rows = A.rows();
+	const size_t A_cols = A.cols();
 	const size_t A_nz = A.nonZeros();
 	out.write((char*)&(A_rows),sizeof(A_rows));
+	out.write((char*)&(A_cols),sizeof(A_cols));
 	out.write((char*)&(A_nz),sizeof(A_nz));
+
 	std::vector<Eigen::Triplet<T> > A_data;
 	A_data.reserve(A.nonZeros());
 	for ( int k = 0; k < A.outerSize(); ++k ){
@@ -175,11 +178,13 @@ namespace MATH{
   inline bool loadSparseMatrix(ifstream &in, Eigen::SparseMatrix<T> &A){
 
 	size_t rows = 0;
+	size_t cols = 0;
 	size_t nnz = 0;
 	in.read((char*)&(rows),sizeof(rows));
+	in.read((char*)&(cols),sizeof(cols));
 	in.read((char*)&(nnz),sizeof(nnz));
 	A.setZero();
-	A.resize(rows, rows);
+	A.resize(rows, cols);
 	if(nnz > 0){
 	  A.reserve(nnz);
 	  std::vector<Eigen::Triplet<T> > tri(nnz);
@@ -429,9 +434,9 @@ namespace MATH{
   }
 
   template<typename T>
-  inline bool loadQP(const Eigen::SparseMatrix<T> &A,const Eigen::Matrix<T,-1,1> &B,
-					 const Eigen::SparseMatrix<T> &J,const Eigen::Matrix<T,-1,1> &c,
-					 const Eigen::Matrix<T,-1,1> &x0,const string file_name){
+  inline bool loadQP(Eigen::SparseMatrix<T> &A,Eigen::Matrix<T,-1,1> &B,
+					 Eigen::SparseMatrix<T> &J,Eigen::Matrix<T,-1,1> &c,
+					 Eigen::Matrix<T,-1,1> &x0,const string file_name){
 
 	// open file
 	ifstream in(file_name.c_str(), ios::in|ios::binary);
