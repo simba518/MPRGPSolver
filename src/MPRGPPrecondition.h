@@ -15,6 +15,7 @@ using namespace std;
 
 namespace MATH{
 
+  // preconditioners for boundary constraints
   // no preconditioning
   template <typename T, typename MAT >
   class InFaceNoPreconSolver{
@@ -64,11 +65,58 @@ namespace MATH{
 	  return 0;
 	}
 
-  private:
+  protected:
 	Vec invert_diag;
 	const vector<char> &face;
   };
 
+
+
+  // preconditioners for decoupled constraints
+  // Jacobian preconditioner
+  template <typename T, typename MAT, bool NO_PRECOND=false >
+  class DiagonalDecouplePreconSolver:public DiagonalInFacePreconSolver<T,MAT,NO_PRECOND>{
+
+	typedef Eigen::Matrix<T,-1,1> Vec;
+
+  public:
+	DiagonalDecouplePreconSolver(const MAT &M,const vector<char> &face,const SparseMatrix<T> &J):
+	  DiagonalInFacePreconSolver<T,MAT,NO_PRECOND>(M,face){
+
+	  if (!NO_PRECOND && J.rows() > 0){
+		JMinv = J*this->invert_diag.asDiagonal();
+		const SparseMatrix<T> JMinvJt = JMinv*J.transpose();
+		getDiagonal(JMinvJt, invert_JMinvJt);
+		for (int i = 0; i < invert_JMinvJt.size(); ++i){
+		  assert_ge( invert_JMinvJt[i], ScalarUtil<T>::scalar_eps );
+		  invert_JMinvJt[i] = 1.0/invert_JMinvJt[i];
+		}
+	  }
+	}
+	int solve(const Vec &g, Vec &z, const Vec &phi)const{
+
+	  if (!NO_PRECOND && JMinv.rows() > 0){
+		Vec lambda = invert_JMinvJt.asDiagonal()*(JMinv*g);
+		assert_eq(lambda.size(), this->face.size());
+		for (size_t i = 0; i < this->face.size(); ++i){
+		  if(0 == this->face[i])
+			lambda[i] = 0;
+		}
+		z = this->invert_diag.asDiagonal()*g-JMinv.transpose()*lambda;
+	  }else{
+		z = phi;
+	  }
+	  return 0;
+	}
+	
+  private:
+	SparseMatrix<T> JMinv; // J*M^{-1}
+	Vec invert_JMinvJt;
+  };
+
+
+
+  // preconditioners for plane constraints
   // Jacobian preconditioner
   template <typename T, typename MAT,bool NO_PRECOND=false>
   class DiagonalPlanePreconSolver{

@@ -154,6 +154,7 @@ namespace MATH{
 	  projector.DECIDE_FACE(result);
 	  projector.PHI(g, phi);
 	  precond.solve(g,z, phi);     assert_eq(z,z);
+	  assert_ge_ext(g.dot(z),0,"\ng.dot(phi) = "<<g.dot(phi)<<"\n|phi|="<<phi.norm()<<"\n|z|="<<z.norm());
 	  p = z;
 	  
 	  result_code = -1;
@@ -169,23 +170,13 @@ namespace MATH{
 	  projector.BETA(g,beta,phi);
 	  gp = phi+beta;
 	  const T residual = gp.norm();
-	  assert_le(phi.dot(beta),ScalarUtil<T>::scalar_eps*residual);
-
-	  // DEBUG_LOG(setprecision(10)<<"||g||: "<<g.norm());
-	  // DEBUG_LOG(setprecision(10)<<"||beta||: "<<beta.norm());
-	  // DEBUG_LOG(setprecision(10)<<"||phi||: "<<phi.norm());
-	  // DEBUG_LOG(setprecision(10)<<"residual: "<<residual);
-	  // DEBUG_LOG("g: "<<g.transpose());
-	  // DEBUG_LOG("phi: "<<phi.transpose());
-	  // DEBUG_LOG("beta: "<<beta.transpose());
-
+	  // assert_le(phi.dot(beta),ScalarUtil<T>::scalar_eps*residual);
 	  return residual;
 	}
 	inline bool proportional(const Vec &result)const{
 	  
 	  //test proportional x: beta*beta <= gamma*gamma*phi*phiTilde
-	  const T beta_norm = beta.norm();
-	  const T left = beta_norm*beta_norm;  assert_eq(left, left);
+	  const T left = beta.dot(beta);  assert_eq(left, left);
 	  const T phitphi = projector.PHITPHI(result,alpha_bar,phi);
 	  const T right = gamma*gamma*phitphi; assert_eq(right, right);
 	  return left <= right;
@@ -217,12 +208,14 @@ namespace MATH{
 	  projector.PHI(g, phi);
 	  xTmp -= alpha_bar*phi;
 	  projector.project(xTmp,result);
+
 	  A.multiply(result,g);
 	  g -= B;
 	  projector.DECIDE_FACE(result);
 	  projector.PHI(g, phi); 
 	  precond.solve(g,z, phi); assert_eq(z, z);
 	  p = z;
+
 	  debug_fun(fun_val = A.funcValue(result, B); cout << name << setprecision(12) << " func = " << fun_val<<endl;);
 	}
 	inline void PropStep(Vec &result){
@@ -233,7 +226,10 @@ namespace MATH{
 	  const Vec &D = beta;
 	  Vec& AD=gp;
 	  A.multiply(D,AD);
-	  const T ddad = D.dot(AD); assert_ne(ddad,0);
+	  const T ddad = D.dot(AD); 
+	  assert_ne_ext(ddad,0,"|beta| = " << beta.norm()
+					<< ", |phi| = " << phi.norm() 
+					<< ", |face| = " << COUNT_CONSTRAINTS(projector.getFace()));
 	  const T alpha_cg = (g.dot(D)) / ddad; assert_eq(alpha_cg, alpha_cg);
 	  result -= alpha_cg*D;
 
@@ -277,27 +273,30 @@ namespace MATH{
 	}
 	inline T CGMonotonicStep(Vec &result, bool &result_is_prop){
 
+	  DEBUG_LOG(name << " begin cg_step");
+	  assert( projector.isFeasible(result) );
 	  Vec &AP=gp;
 	  A.multiply(p, AP);
 	  const T pd = p.dot(AP); assert_ge(pd, 0); // pd = p^t*A*p > 0
+	  assert_ge_ext(g.dot(z),0,"\ng.dot(phi) = "<<g.dot(phi)<<"\n|phi|="<<phi.norm()<<"\n|beta|="<<beta.norm()<<"\n|z|="<<z.norm());
 	  T alpha_cg = (z.dot(g)) / pd; assert_ge(alpha_cg, 0);
 
 	  y = result - alpha_cg*p;
 	  T fy = projectFunValue(y);
 	  T fx = A.funcValue(result, B);
-	  assert( projector.isFeasible(result) );
+	  DEBUG_LOG("fx-fy: " << fx-fy);
 
 	  result_is_prop = true;
-	  bool runned_cg = false;
 	  while( result_is_prop && residual_out > tolerance_factor
 			 && fy<=fx && iteration < max_iterations ){
 
-		debug_fun(fun_val = fy; cout<< name << setprecision(12) << " func = " << fun_val<<endl;);
+		DEBUG_LOG(name << " cg_step");
+		debug_fun(fun_val = fy;cout<<name<<setprecision(12)<<" func = "<<fun_val<<endl;);
 		result = y;
 		g -= alpha_cg*AP;
 		projector.PHI(g, phi);  assert_ge(g.dot(phi),0);
 		precond.solve(g,z, phi);   assert_eq(z, z);
-		assert_ge(g.dot(z),0);
+		assert_ge_ext(g.dot(z),0,"\ng.dot(phi) = "<<g.dot(phi)<<"\n|phi|="<<phi.norm()<<"\n|beta|="<<beta.norm());
 		const T beta = (z.dot(AP)) / (p.dot(AP)); assert_eq(beta, beta);
 		p = z-beta*p;
 		residual_out = computeGradients(g, false);
@@ -313,11 +312,7 @@ namespace MATH{
 
 		num_cg ++;
 		iteration ++;
-		runned_cg = true;
 	  }
-
-	  if (!runned_cg)
-		iteration ++;
 
 	  return residual_out;
 	}
@@ -394,7 +389,10 @@ namespace MATH{
 	  	}
 	  }
 
-	  ERROR_LOG_COND(MB::name << " is not convergent with "<< MB::iteration << " iterations."<<endl, (MB::iteration < MB::max_iterations));
+  	  MB::result_code = MB::residual_out <= MB::tolerance_factor ? 0 : -1;
+  	  ERROR_LOG_COND(MB::name << " is not convergent with "<< MB::iteration << 
+					 " iterations."<<endl,MB::result_code >= 0);
+
 	  debug_fun( this->printSolveInfo() );
 	  return MB::result_code;
 	}
@@ -427,13 +425,12 @@ namespace MATH{
 		bool result_is_prop = MB::proportional(result);
   	  	if(result_is_prop){
   		  MB::residual_out = this->CGMonotonicStep(result, result_is_prop);
-		  DEBUG_LOG(MB::name << " residual = " << MB::residual_out);
 		}
 
   	  	if( MB::residual_out <= MB::tolerance_factor )
   	  	  break;
 
-  		if ( MB::y.size() <= 0 || !(MB::projector.isFeasible(MB::y)) ){
+  		if ( result_is_prop || MB::y.size() <= 0 || !(MB::projector.isFeasible(MB::y)) ){
   		  this->ExpMonotonicStep(result);
 		  MB::iteration ++;
   	  	}else if( !result_is_prop ){
@@ -449,7 +446,9 @@ namespace MATH{
 	  
   	  MB::result_code = MB::residual_out <= MB::tolerance_factor ? 0 : -1;
   	  MB::iterations_out = MB::iteration;
-  	  ERROR_LOG_COND(MB::name << " is not convergent with "<< MB::iteration << " iterations."<<endl, (MB::iteration < MB::max_iterations));
+
+  	  ERROR_LOG_COND(MB::name << " is not convergent with "<< MB::iteration << 
+					 " iterations."<<endl,MB::result_code >= 0);
 
 	  debug_fun(MB::projector.DECIDE_FACE(result));
   	  debug_fun( this->printSolveInfo() );
@@ -727,8 +726,8 @@ namespace MATH{
 
 	  UTILITY::Timer timer;
 	  timer.start();
-	  typedef DiagonalInFacePreconSolver<T,MAT, !preconditioned> Preconditioner;
-	  Preconditioner precond(A, projector.getFace());
+	  typedef DiagonalDecouplePreconSolver<T,MAT, !preconditioned> Preconditioner;
+	  Preconditioner precond(A, projector.getFace(), projector.getConMatrix());
 	  timer.stop(solver_name + " time for preconditioning setup: ");
 
 	  typedef MPRGPMonotonic<T, MAT, DecoupledConProjector<T>, Preconditioner > MPRGPSolver;
@@ -738,7 +737,7 @@ namespace MATH{
 	  return rlst_code;
 	}
 
-	template <typename MAT>
+	template <typename MAT, bool preconditioned = true>
 	static int solve(const MAT &A,const Vec &B,const SparseMatrix<T> &J,const Vec &c,Vec &x, 
 					 const T tol=1e-3, const int max_it = 1000, 
 					 const std::string solver_name = "MPRGP"){
@@ -748,9 +747,10 @@ namespace MATH{
 	  Vec JJt;
 	  getDiagonal(JJt_mat, JJt);
 	  DecoupledConProjector<T> projector(J, JJt, c);
-	  return solve(A, B, projector, x, tol, max_it, solver_name);
+	  return solve<MAT, preconditioned>(A, B, projector, x, tol, max_it, solver_name);
 	}
 
+	template <bool preconditioned = true>
 	static int solve(const std::string file_name, Vec&x, 
 					 const T tol=1e-3, const int max_it = 1000,
 					 const std::string solver_name = "MPRGP"){
@@ -760,7 +760,7 @@ namespace MATH{
 	  int code = -1;
 	  if ( loadQP(A, B, J, c, x, file_name) ){
 		FixedSparseMatrix<T> FA(A);
-		code = solve(FA, B, J, c, x, tol, max_it, solver_name);
+		code = solve<FixedSparseMatrix<T>,preconditioned>(FA, B, J, c, x, tol, max_it, solver_name);
 	  }
 	  return code;
 	}

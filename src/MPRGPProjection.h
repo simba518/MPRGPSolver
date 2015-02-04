@@ -464,6 +464,9 @@ namespace MATH{
 	const vector<char> &getFace()const{
 	  return face;
 	}
+	const SparseMatrix<T> &getConMatrix()const{
+	  return J;
+	}
 
 	// return the largest step in direction -D.
 	T stepLimit(const Vec &X,const Vec&D,const T alpha_cg=ScalarUtil<T>::scalar_max)const{
@@ -496,6 +499,7 @@ namespace MATH{
 		  lambda[i] = std::max<T>(lambda[i]/JJt[i], 0.0);
 		}
 	  y = x + J.transpose()*lambda;
+	  assert_ext(isFeasible(y),"Jy-c:\n"<<(J*y-c).transpose());
 	}
 	void PHI(const Vec &g,Vec &phi) const{
 
@@ -513,24 +517,13 @@ namespace MATH{
 	}
 	void BETA(const Vec &g, Vec &beta, const Vec &phi){
 
-	  Vec lambda = J*g;
+	  beta = g-phi;
+	  Vec lambda = J*beta;
 	  for (size_t i = 0; i < face.size(); ++i){
 	  	if(0 != face[i])
 	  	  lambda[i] = std::max<T>(0.0,lambda[i]/JJt[i]);
 	  }
-	  beta = g-J.transpose()*lambda;
-	  const T norm_phi = phi.norm();
-	  if(norm_phi >= ScalarUtil<T>::scalar_eps){
-		beta -= (beta.dot(phi)/(norm_phi*norm_phi))*phi;
-	  }
-
-	  // cout << "face: ";
-	  // for (int i = 0; i < face.size(); ++i){
-	  // 	cout << (int)face[i] << " ";
-	  // }
-	  // cout << "\ng: " << g.transpose() << endl;
-	  // cout << "phi: " << phi.transpose() << endl;
-	  // cout << "beta: " << beta.transpose() << endl;
+	  beta -= J.transpose()*lambda;
 	}
 	void DECIDE_FACE(const Vec& x){
 
@@ -562,8 +555,9 @@ namespace MATH{
 	  const Vec Jx = J*x;
 	  OMP_PARALLEL_FOR_
 		for(int i = 0; i < c.size(); i++){
-		  if( Jx[i] < c[i] - ScalarUtil<T>::scalar_eps)
+		  if( Jx[i] < c[i] - ScalarUtil<T>::scalar_eps){
 			return false;
+		  }
 		}
 	  return true;
 	}

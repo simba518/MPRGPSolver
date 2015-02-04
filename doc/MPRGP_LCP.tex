@@ -50,7 +50,7 @@ As $J^TJ$ is a \TODO{SPD matrix (why?)}, we can use traditional MPRGP solver to 
 \subsection{Step Limit}
 Given a feasible point $x$ and a direction $p$, the step limit $\alpha$ is a positive scalar which satisfies
 \begin{equation}
-  J(x+\alpha p) \ge c
+  J(x-\alpha p) \ge c
 \end{equation}
 Thus we can compute $\alpha$ by using
 \begin{equation} 
@@ -60,8 +60,8 @@ where
 \begin{equation}
   \alpha_i = \left\{
   \begin{array}{l l}
-    +\infty & \quad \text{if $J_ip \ge 0$}\\
-    \frac{c_i-J_ix}{J_ip} & \quad \text{if $J_ip < 0$}
+    +\infty & \quad \text{if $-J_ip \ge 0$}\\
+    \frac{J_ix-c_i}{J_ip} & \quad \text{if $-J_ip < 0$}
   \end{array} \right  
 \end{equation}
 Here, $J_i$ is the $i$-th row of matrix $J$.
@@ -95,22 +95,19 @@ where $\sigma = g^Tg-(Jg)^T\xi$.
 As $\hat{J}\hat{J}^T$ is a SPD matrix, we can use Conjugate Gradient method to solve this problem. However, as $\hat{J}^T\hat{J}$ is not constant, we need a more cheap preconditioner rather than Incomplete Cholesky Factorization, such as $SOR$ preconditioner. (\TODO{Any more efficient method?})
 
 \subsection{Chopped gradient}
-The chopped gradient $\beta(x)$ should be complemented to the free direction $\phi(x)$, and it should be as close to the gradient $g$ as possible. What's more, it is required that $x+\alpha \beta$ should always satisfies the constraints for any $\alpha > 0$. Thus we compute $\phi(x)$ by solving
+The chopped gradient $\beta(x)$ should be as close to the gradient $g$ as possible, and it is required that $x-\alpha \beta$ should always satisfies the constraints for any $\alpha > 0$. Thus we compute $\phi(x)$ by solving
 \begin{equation}
-  \beta = \min_\beta \frac{1}{2} \|\beta - g\|_2^2  \quad \mbox{ s.t. } \quad \phi^T \beta = 0 \mobx{, }\quad \hat{J} \beta \ge 0
+  \beta = \min_\beta \frac{1}{2} \|\beta - g_\beta\|_2^2  \quad \mbox{ s.t. } \quad -\hat{J} \beta \ge 0
 \end{equation}
-The KKT condition of this problem is
+where $g_\beta = g-\phi$. The KKT condition of this problem is
 \begin{equation}
-  \beta = g + \phi \lambda_1 + \hat{J}^T\lambda_2  \quad \mbox{ s.t. } \quad \phi^T \beta = 0 \mobx{, }\quad 0 \le \lambda_2 \perp \hat{J} \beta \ge 0
+  \beta = g_\beta - \hat{J}^T\lambda  \quad \mbox{ s.t. } \quad 0 \le \lambda \perp -\hat{J} \beta \ge 0
 \end{equation}
-By replacing $\beta$ with $\lambda_1$, $\lambda_2$ in the constraints, and using the fact that $\hat{J}\phi = 0$, we obtain
+By replacing $\beta$ with $\lambda$ in the constraints, we obtain
 \begin{equation}
-  \phi^T\phi \lambda_1 = -\phi^Tg
+  \hat{J}\hat{J}^T\lambda = \hat{J}g_\beta \quad \mbox{s.t.} \quad \lambda \ge 0
 \end{equation}
-\begin{equation}
-  \hat{J}\hat{J}^T\lambda_2 = -\hat{J}g \quad \mbox{s.t.} \quad \lambda_2 \ge 0
-\end{equation}
-As $\hat{J}^T\hat{J}$ is a \TODO{SPD matrix (why?)}, we can use traditional MPRGP solver to solve for $\lambda_2$, and \TODO{use SOR as preconditioner}.
+As $\hat{J}^T\hat{J}$ is a \TODO{SPD matrix (why?)}, we can use traditional MPRGP solver to solve for $\lambda$, and \TODO{use SOR as preconditioner}.
 
 \subsection{Precondition}
 We suppose the preconditioning matrix is $M = LL^T$, then we convert the original LCP problem into

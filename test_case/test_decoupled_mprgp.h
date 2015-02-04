@@ -5,25 +5,13 @@
 #include "test_utility.h"
 using namespace MATH;
 
-void test_DecoupledMprgp(){
+void test_DecoupledMprgp(const SparseMatrix<double> &A,const SparseMatrix<double> &J,
+						 const double tol, const int max_it, bool check_A = false){
   
-  cout << "testDecoupledMprgp " << endl;
-
-  // init QP 
-  const double tol = 1e-6;
-  const int max_it = 10;
-  const int n = 2;
-  const MatrixXd M = MatrixXd::Random(n,n) + MatrixXd::Identity(n,n)*3.0f;
-  const MatrixXd MtM = M.transpose()*M;
-  const SparseMatrix<double> A = createFromDense(MtM);
-
-  const MatrixXd JM = MatrixXd::Identity(std::min<int>(1,n),n)*3;
-  const SparseMatrix<double> J = createFromDense(JM);
-
-  const VectorXd b = VectorXd::Random(n);
+  const VectorXd b = VectorXd::Random(A.rows());
   const VectorXd c = VectorXd::Random(J.rows());
 
-  {// check matrices
+  if(check_A){// check matrices
 	SelfAdjointEigenSolver<MatrixXd> es(A);
 	cout << "eige(A): " << es.eigenvalues().transpose() << endl;
 	// cout << "J:\n" << MatrixXd(J) << endl;
@@ -37,7 +25,7 @@ void test_DecoupledMprgp(){
   DecoupledConProjector<double> projector(J, JJt, c);
 
   // get init value
-  VectorXd y(n), x(n);
+  VectorXd y(A.rows()), x(A.rows());
   y.setZero();
   projector.project(y, x);
   assert_eq(x.size(), y.size());
@@ -46,8 +34,57 @@ void test_DecoupledMprgp(){
   // solve
   typedef FixedSparseMatrix<double> MAT;
   MAT FA(A);
-  MPRGPDecoupledCon<double>::solve<MAT,false>(FA, b, projector, x, tol, max_it);
+  const int code = MPRGPDecoupledCon<double>::solve<MAT,true>(FA,b,projector,x,tol,max_it);
+  assert_ge(code, 0);
+}
+
+void test_DecoupledMprgp(){
   
+  if(true){
+	cout << "test_DecoupledMprgp 1" << endl;
+	const int n = 100;
+	const MatrixXd M = MatrixXd::Random(n,n) + MatrixXd::Identity(n,n)*3.0f;
+	const MatrixXd MtM = M.transpose()*M;
+	const SparseMatrix<double> A = createFromDense(MtM);
+	MatrixXd JM = MatrixXd::Identity(std::min<int>(A.rows(), A.rows()), A.rows());
+	const SparseMatrix<double> J = createFromDense(JM);
+	// test_DecoupledMprgp(A, J, 1e-10, 100, false); /// @bug
+	test_DecoupledMprgp(A, J, 1e-6, 100, false);
+  }
+
+  if(true){
+	cout << "test_DecoupledMprgp 2" << endl;
+	const int n = 10;
+	const MatrixXd M = MatrixXd::Random(n,n) + MatrixXd::Identity(n,n)*3.0f;
+	const MatrixXd MtM = M.transpose()*M;
+	const SparseMatrix<double> A = createFromDense(MtM);
+	MatrixXd JM = MatrixXd::Identity(std::min<int>(A.rows()/2, A.rows()), A.rows());
+	const SparseMatrix<double> J = createFromDense(JM);
+	test_DecoupledMprgp(A, J, 1e-10, 12, false);
+  }
+
+  if(true){
+	cout << "test_DecoupledMprgp 3" << endl;
+	const int n = 10;
+	const MatrixXd M = MatrixXd::Random(n,n) + MatrixXd::Identity(n,n)*3.0f;
+	const MatrixXd MtM = M.transpose()*M;
+	const SparseMatrix<double> A = createFromDense(MtM);
+	MatrixXd JM = MatrixXd::Identity(std::min<int>(A.rows()/2, A.rows()), A.rows())*3.0;
+	const SparseMatrix<double> J = createFromDense(JM);
+	test_DecoupledMprgp(A, J, 1e-10, 20, false);
+  }
+
+  if(true){
+	cout << "test_DecoupledMprgp 4" << endl;
+	const int n = 3;
+	const MatrixXd M = MatrixXd::Random(n,n) + MatrixXd::Identity(n,n)*3.0f;
+	const MatrixXd MtM = M.transpose()*M;
+	const SparseMatrix<double> A = createFromDense(MtM);
+	MatrixXd JM = MatrixXd::Identity(std::min<int>(2,A.rows()), A.rows())*3;
+	JM << 1,10,0, 0,0,4;
+	const SparseMatrix<double> J = createFromDense(JM);
+	test_DecoupledMprgp(A, J, 1e-10, 12, true);
+  }
 }
 
 void test_MPRGPLowerBound(){
