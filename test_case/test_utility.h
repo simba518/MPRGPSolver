@@ -140,6 +140,11 @@ void test_io2(){
   assert_eq((J-J2).norm(), 0);
   assert_eq((A-A2).norm(), 0);
 
+  const string project_dir = "/home/simba/Workspace/CollisionHandle/";
+  const string qp = project_dir+"/data/cube/tempt_2cube_mprgp14000/QP/qp6.b";
+  const bool load_succ = loadQP(A2, B2, J2, c2, x2, qp);
+  assert(load_succ);
+
 }
 
 #endif /* _TEST_UTILITY_H_ */

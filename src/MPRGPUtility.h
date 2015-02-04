@@ -183,6 +183,11 @@ namespace MATH{
 	in.read((char*)&(rows),sizeof(rows));
 	in.read((char*)&(cols),sizeof(cols));
 	in.read((char*)&(nnz),sizeof(nnz));
+
+	DEBUG_LOG("rows = " << rows);
+	DEBUG_LOG("cols = " << cols);
+	DEBUG_LOG("nnz = " << nnz);
+
 	A.setZero();
 	A.resize(rows, cols);
 	if(nnz > 0){
