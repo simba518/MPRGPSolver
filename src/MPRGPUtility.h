@@ -170,7 +170,8 @@ namespace MATH{
 	  for ( typename Eigen::SparseMatrix<T>::InnerIterator it(A,k); it; ++it )
 		A_data.push_back(Eigen::Triplet<T>(it.row(), it.col(), it.value()));
 	}
-	out.write((char*)&A_data[0],sizeof(Eigen::Triplet<T>)*A_nz);
+	if (A_data.size() > 0)
+	  out.write((char*)&A_data[0],sizeof(Eigen::Triplet<T>)*A_nz);
 	return out.good();
   }
 
@@ -420,18 +421,21 @@ namespace MATH{
 	  
 	// write B
 	assert_eq(B.size(), A.rows());
-	out.write((char*)&B[0],sizeof(T)*B.size());
+	if(B.size() > 0)
+	  out.write((char*)&B[0],sizeof(T)*B.size());
 
 	// write J
 	writeSparseMatrix(out, J);
 
 	// write c
 	assert_eq(c.size(), J.rows());
-	out.write((char*)&c[0],sizeof(T)*c.size());
+	if (c.size() > 0)
+	  out.write((char*)&c[0],sizeof(T)*c.size());
 
 	// write x0
 	assert_eq(x0.size(), A.rows());
-	out.write((char*)&x0[0],sizeof(T)*x0.size());
+	if (x0.size() > 0)
+	  out.write((char*)&x0[0],sizeof(T)*x0.size());
 
 	const bool succ = out.good();
 	out.close();
