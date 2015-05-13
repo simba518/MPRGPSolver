@@ -393,7 +393,7 @@ namespace MATH{
   	  ERROR_LOG_COND(MB::name << " is not convergent with "<< MB::iteration << 
 					 " iterations."<<endl,MB::result_code >= 0);
 
-	  debug_fun( this->printSolveInfo() );
+	  this->printSolveInfo();
 	  return MB::result_code;
 	}
 
@@ -451,7 +451,7 @@ namespace MATH{
 					 " iterations."<<endl,MB::result_code >= 0);
 
 	  debug_fun(MB::projector.DECIDE_FACE(result));
-  	  debug_fun( this->printSolveInfo() );
+  	  this->printSolveInfo();
   	  return MB::result_code;
   	}
 

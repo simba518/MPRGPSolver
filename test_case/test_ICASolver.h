@@ -24,7 +24,7 @@ void test_GaussSeidel(){
   const bool succ = GS.solve(c, lambda);
   assert(succ);
 
-  // GS.printSolveInfo(B, c, lambda);
+  GS.printSolveInfo(B, c, lambda);
 
   assert_le( abs(lambda[0] - 0.812190291031091), 1e-4 );
   assert_le( abs(lambda[1] - (-0.6649698147983967)), 1e-4 );
@@ -46,7 +46,7 @@ void test_ProjectedGaussSeidel(){
   lambda.setZero();
 
   const bool succ = PGS.solve(c, lambda);
-  // PGS.printSolveInfo(B, c, lambda);
+  PGS.printSolveInfo(B, c, lambda);
   assert(succ);
 
   assert_le(PGS.getIterations(), 47);
@@ -79,7 +79,7 @@ void test_ICASolver(){
   const VectorXd p = VectorXd::Random(m);
   VectorXd x = VectorXd::Random(n);
   bool succ = ICA.solve(J, p, x);
-  // ICA.printSolveInfo(A,J,p,x);
+  ICA.printSolveInfo(A,J,p,x);
   assert(succ);
 
   assert_le(ICA.getResidual(), tol);

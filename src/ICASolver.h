@@ -78,6 +78,8 @@ namespace MATH{
 	  bool succ = false;
 	  for (iterations = 0; iterations < max_it; ++iterations){
 		
+		if (projected)
+		  pre_lambda = lambda;
 		rhs = c - Ub*lambda;
 
 		for (int row = 0; row < (int)invD.size(); ++row){
@@ -90,7 +92,12 @@ namespace MATH{
 			lambda[row] = lambda[row] > 0 ? lambda[row]:0;
 		}
 
-		residual = ((*pB)*lambda-c).norm();
+		if (projected){
+		  residual = (lambda-pre_lambda).norm();
+		}else{
+		  residual = ((*pB)*lambda-c).norm();
+		}
+
 		DEBUG_LOG(name << " residual = " << residual);
 		if( residual <= tol ){
 		  succ = true;
@@ -116,7 +123,11 @@ namespace MATH{
 
 	  INFO_LOG(name << " residual: " << getResidual());
 	  INFO_LOG(name << " iterations: " << getIterations());
-	  INFO_LOG(name << " Eqation residual ||B lambda - c||: " << (B*lambda - c).norm());
+	  if (projected && (pre_lambda.size() == lambda.size()) ){
+		INFO_LOG(name << " Eqation residual ||pre_lambda - lambda||: " << (lambda - pre_lambda).norm());
+	  }else{
+		INFO_LOG(name << " Eqation residual ||B lambda - c||: " << (B*lambda - c).norm());
+	  }
 	  INFO_LOG(name << " Complement Cond lambda.dot(B lambda - c): " << lambda.dot((*pB)*lambda-c));
 	  INFO_LOG(name << " lambda: " << lambda.transpose());
 	  INFO_LOG(name << " B lambda - c: " << (B*lambda-c).transpose());
@@ -224,7 +235,8 @@ namespace MATH{
 		}
 
 		residual = ((*pA)*x-B).norm();
-		DEBUG_LOG(name << " residual = " << residual);
+		DEBUG_LOG (name << " residual = " << residual);
+		debug_fun ({const double func = 0.5*(x.dot((*pA)*x))-x.dot(B); DEBUG_LOG(name<<" func = "<<func);});
 		if ( residual <= tol ) {
 		  succ = true;
 		  break;
@@ -270,8 +282,8 @@ namespace MATH{
   // Implicit Contact Handling for Deformable Objects, EG 2009, 
   // Miguel A. Otaduy, Rasmus Tamstorf, Denis Steinemann, and Markus Gross.
   // for sovling: 
-  // A x = J^t lambda, s.t. 0 <= lambda _|_ Jx >= p.
-  // In eq (6) of paper, we have: x = \Delta v, and p = -1/(\delta t)g0 - Jv*
+  // A x = r + J^t lambda, s.t. 0 <= lambda _|_ Jx >= p.
+  // In eq (6) of paper, we have: r=Av*-b, x = \Delta v, and p = -1/(\delta t)g0 - Jv*
   class ICASolver{
 	
   public:
@@ -280,11 +292,19 @@ namespace MATH{
 	  PGS = boost::shared_ptr<ProjectedGaussSeidel>(new ProjectedGaussSeidel(gs_max_it, gs_tol));
 	}
 
+	void reset(const SparseMatrix<double> &A, const VectorXd &r){
+	  reset(A);
+	  assert_eq(r.size(), A.rows());
+	  R = r;
+	}
+
 	void reset(const SparseMatrix<double> &A){
 	  
 	  // decompose A as: A = La+Da+Ua
 	  // @note in the original paper, we have A = -La+Da-Ua.
 	  pA = &A;
+	  R.resize(A.rows());
+	  R.setZero();
 	  assert_eq(A.rows(), A.cols());
 	  assert_eq(A.rows()%3,0);
 	  const int nz = A.nonZeros();
@@ -366,11 +386,10 @@ namespace MATH{
 	  bool succ = false;
 	  for (iterations = 0; iterations < max_it; ++iterations){
 
-		// pre_x = x;
-		c = p+J*(invDa_Mat*(LaUa*x));
+		c = p+J*(invDa_Mat*(LaUa*x-R));
 		PGS->solve(c, lambda);
 		const VectorXd JtL = J.transpose()*lambda;
-		rhs = JtL-Ua*x;
+		rhs = JtL-Ua*x+R;
 
 		// 3x3 block GS
 		for (int row = 0; row < x.size(); row+=3){
@@ -383,9 +402,9 @@ namespace MATH{
 		  x.segment<3>(row) = invDa[row/3]*rhs.segment<3>(row);
 		}
 
-		// residual = (pre_x-x).norm();
-		residual = ((*pA)*x-J.transpose()*lambda).norm();
+		residual = ((*pA)*x-R-J.transpose()*lambda).norm();
 		DEBUG_LOG(name << " residual = " << residual);
+		debug_fun ({const double func = 0.5*(x.dot((*pA)*x))-x.dot(R); DEBUG_LOG(name<<" func = "<<func);});
 		if ( residual <= tol ) {
 		  succ = true;
 		  break;
@@ -434,7 +453,7 @@ namespace MATH{
 
 	SparseMatrix<double> B;
 
-	VectorXd lambda, c, rhs, pre_x;
+	VectorXd lambda, c, rhs, R;
 	int iterations;
 	double residual;
 

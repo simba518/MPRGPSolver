@@ -34,7 +34,7 @@ void test_DecoupledMprgp(const SparseMatrix<double> &A,const SparseMatrix<double
   // solve
   typedef FixedSparseMatrix<double> MAT;
   MAT FA(A);
-  const int code = MPRGPDecoupledCon<double>::solve<MAT,true>(FA,b,projector,x,tol,max_it);
+  const int code = MPRGPDecoupledCon<double>::solve<MAT,false>(FA,b,projector,x,tol,max_it);
   assert_ge(code, 0);
 }
 

@@ -6,7 +6,7 @@
 
 namespace MATH{
 
-  class IdentityCGPrecond{
+  class IdentityPrecond{
   
   public:
 	template<class VEC>
@@ -19,7 +19,7 @@ namespace MATH{
    * @class FlexiblePCG 
    * @see http://en.wikipedia.org/wiki/Conjugate_gradient_method#The_flexible_preconditioned_conjugate_gradient_method
    */
-  template<class T, class MAT, class VEC, class PRECONDITIONER=IdentityCGPrecond, bool FLEXIBLE=true>
+  template<class T, class MAT, class VEC, class PRECONDITIONER=IdentityPrecond, bool FLEXIBLE=true>
   class FlexiblePCG{
 	
   public:
